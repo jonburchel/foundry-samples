@@ -1,19 +1,16 @@
-# Sample SharePoint Content for Tutorial Series
+# Sample SharePoint Content for Tutorial
 
-To create a coherent business scenario, upload these sample documents to your SharePoint site:
+To create a coherent business scenario, upload these sample documents to your SharePoint site.
 
 ## Document Structure
 
-### 📁 Shared Documents/Policies/
-1. **remote-work-policy.docx**
-2. **security-guidelines.docx** 
-3. **collaboration-standards.docx**
-4. **data-governance-policy.docx**
+Upload these documents to a document library called "Company Policies" (or use your existing "Documents" library):
 
-### 📁 Shared Documents/Procedures/
-1. **employee-onboarding.docx**
-2. **project-workflow.docx**
-3. **incident-response.docx**
+### 📁 Company Policies/
+1. **remote-work-policy.docx** - Remote work security requirements
+2. **security-guidelines.docx** - Azure security standards
+3. **collaboration-standards.docx** - Teams and communication policies
+4. **data-governance-policy.docx** - Data handling requirements
 
 ---
 
