@@ -1,10 +1,3 @@
-/**
- * Azure AI Foundry Agent Sample - Tutorial 1: Modern Workplace Assistant
- * 
- * This sample demonstrates enterprise agent patterns using Java.
- * Combines SharePoint and MCP integration for real business scenarios.
- */
-
 import com.azure.ai.projects.AIProjectClient;
 import com.azure.ai.projects.AIProjectClientBuilder;
 import com.azure.ai.projects.models.*;
@@ -15,97 +8,40 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class Main {
-    private static AIProjectClient projectClient;
-    private static Dotenv dotenv;
-    
-    static {
-        // Load environment variables
-        dotenv = Dotenv.configure().ignoreIfMissing().load();
-        
-        String aiFoundryTenantId = dotenv.get("AI_FOUNDRY_TENANT_ID");
-        if (aiFoundryTenantId != null && !aiFoundryTenantId.isEmpty()) {
-            System.out.println("🔐 Using AI Foundry tenant: " + aiFoundryTenantId);
-        }
+    public static void main(String[] args) throws Exception {
+        Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
         
         String projectEndpoint = dotenv.get("PROJECT_ENDPOINT");
-        projectClient = new AIProjectClientBuilder()
+        String modelDeploymentName = dotenv.get("MODEL_DEPLOYMENT_NAME");
+        String sharepointResourceName = dotenv.get("SHAREPOINT_RESOURCE_NAME");
+        String mcpServerUrl = dotenv.get("MCP_SERVER_URL", "https://learn.microsoft.com/api/mcp");
+        
+        AIProjectClient client = new AIProjectClientBuilder()
             .endpoint(projectEndpoint)
             .credential(new DefaultAzureCredentialBuilder().build())
             .buildClient();
-    }
-    
-    static class AgentConfiguration {
-        Agent agent;
-        boolean hasSharePoint;
         
-        AgentConfiguration(Agent agent, boolean hasSharePoint) {
-            this.agent = agent;
-            this.hasSharePoint = hasSharePoint;
-        }
-    }
-    
-    static class BusinessScenario {
-        String title;
-        String question;
-        String context;
-        String expectedSource;
-        String learningPoint;
-        
-        BusinessScenario(String title, String question, String context, String expectedSource, String learningPoint) {
-            this.title = title;
-            this.question = question;
-            this.context = context;
-            this.expectedSource = expectedSource;
-            this.learningPoint = learningPoint;
-        }
-    }
-    
-    static class ChatResponse {
-        String response;
-        String status;
-        
-        ChatResponse(String response, String status) {
-            this.response = response;
-            this.status = status;
-        }
-    }
-    
-    static AgentConfiguration createWorkplaceAssistant() {
-        System.out.println("🤖 Creating Modern Workplace Assistant...");
-        
-        String sharepointResourceName = dotenv.get("SHAREPOINT_RESOURCE_NAME");
-        String mcpServerUrl = dotenv.get("MCP_SERVER_URL");
-        String modelDeploymentName = dotenv.get("MODEL_DEPLOYMENT_NAME");
-        
-        System.out.println("📁 Configuring SharePoint integration...");
-        System.out.println("   Connection: " + sharepointResourceName);
+        System.out.println("🤖 Creating Modern Workplace Assistant...\n");
         
         boolean hasSharePoint = false;
-        List<Map<String, Object>> tools = new ArrayList<>();
+        List<ToolDefinition> tools = new ArrayList<>();
         
-        try {
-            // Try to get SharePoint connection
-            var connection = projectClient.getConnection(sharepointResourceName);
-            if (connection != null) {
-                Map<String, Object> sharepointTool = new HashMap<>();
-                sharepointTool.put("type", "sharepoint");
-                sharepointTool.put("connection_id", connection.getId());
-                tools.add(sharepointTool);
-                hasSharePoint = true;
-                System.out.println("✅ SharePoint successfully connected");
+        if (sharepointResourceName != null && !sharepointResourceName.isEmpty()) {
+            try {
+                ConnectionResponse connection = client.getConnection(sharepointResourceName);
+                if (connection != null) {
+                    tools.add(new SharePointToolDefinition(connection.getId()));
+                    hasSharePoint = true;
+                    System.out.println("✅ SharePoint connected: " + sharepointResourceName);
+                }
+            } catch (Exception e) {
+                System.out.println("⚠️  SharePoint connection not found: " + e.getMessage());
+                System.out.println("   Agent will operate in technical guidance mode only");
             }
-        } catch (Exception e) {
-            System.out.println("⚠️  SharePoint connection failed: " + e.getMessage());
-            System.out.println("   Agent will operate in technical guidance mode only");
         }
         
         System.out.println("📚 Configuring Microsoft Learn MCP integration...");
-        Map<String, Object> mcpTool = new HashMap<>();
-        mcpTool.put("type", "mcp");
-        mcpTool.put("server_label", "microsoft_learn");
-        mcpTool.put("server_url", mcpServerUrl);
-        mcpTool.put("require_approval", "never");
-        tools.add(mcpTool);
+        tools.add(new McpToolDefinition("microsoft_learn", mcpServerUrl));
         System.out.println("✅ Microsoft Learn MCP connected: " + mcpServerUrl);
         
         String instructions = hasSharePoint ?
@@ -117,154 +53,76 @@ public class Main {
             "RESPONSE STRATEGY:\n" +
             "- For policy questions: Search SharePoint for company-specific requirements\n" +
             "- For technical questions: Use Microsoft Learn for Azure/M365 documentation\n" +
-            "- For implementation questions: Combine both sources\n" +
-            "- Always cite sources and provide step-by-step guidance" :
+            "- For implementation questions: Combine both sources to show how company policies map to technical implementation" :
             "You are a Technical Assistant with access to Microsoft Learn documentation.\n\n" +
             "CAPABILITIES:\n" +
             "- Access Microsoft Learn for current Azure and Microsoft 365 technical guidance\n" +
             "- Provide detailed implementation steps and best practices\n\n" +
             "LIMITATIONS:\n" +
             "- SharePoint integration is not available\n" +
-            "- Cannot access company-specific policies\n\n" +
-            "RESPONSE STRATEGY:\n" +
-            "- Provide comprehensive technical guidance from Microsoft Learn\n" +
-            "- Include step-by-step implementation instructions";
+            "- Cannot access company-specific policies";
         
-        System.out.println("🛠️  Configuring agent tools...");
-        System.out.println("   Available tools: " + tools.size());
+        System.out.println("\n🛠️  Creating agent with " + tools.size() + " tool(s)...");
         
-        Agent agent = projectClient.createAgent(
+        Agent agent = client.createAgent(
             modelDeploymentName,
-            "Modern Workplace Assistant",
-            instructions,
-            tools
+            new AgentCreationOptions()
+                .setName("Modern Workplace Assistant")
+                .setInstructions(instructions)
+                .setTools(tools)
         );
         
-        System.out.println("✅ Agent created successfully: " + agent.getId());
-        return new AgentConfiguration(agent, hasSharePoint);
-    }
-    
-    static void demonstrateBusinessScenarios(AgentConfiguration config) throws InterruptedException {
-        BusinessScenario[] scenarios = {
-            new BusinessScenario(
-                "📋 Company Policy Question",
-                "What is our remote work security policy regarding multi-factor authentication?",
-                "Employee needs to understand company MFA requirements",
-                "SharePoint",
-                "Internal policy retrieval and interpretation"
-            ),
-            new BusinessScenario(
-                "🔧 Technical Implementation Question",
-                "How do I set up Azure Active Directory conditional access policies?",
-                "IT administrator needs technical implementation steps",
-                "Microsoft Learn MCP",
-                "External technical documentation access"
-            ),
-            new BusinessScenario(
-                "🔄 Combined Business Implementation Question",
-                "Our company security policy requires multi-factor authentication for remote workers. How do I implement this requirement using Azure AD?",
-                "Need to combine policy requirements with technical implementation",
-                "Both SharePoint and MCP",
-                "Multi-source intelligence combining internal requirements with external implementation"
-            )
+        System.out.println("✅ Agent created: " + agent.getId() + "\n");
+        
+        String[][] scenarios = {
+            {"📋 Policy Question", "What is our remote work policy regarding security requirements?"},
+            {"🔧 Technical Question", "How do I set up Azure Active Directory conditional access?"},
+            {"🔄 Implementation Question", "Our security policy requires MFA - how do I implement this in Azure AD?"}
         };
         
-        System.out.println("\n" + "=".repeat(70));
-        System.out.println("🏢 MODERN WORKPLACE ASSISTANT - BUSINESS SCENARIO DEMONSTRATION");
-        System.out.println("=".repeat(70));
-        System.out.println("This demonstration shows how AI agents solve real business problems");
-        System.out.println("by combining internal company knowledge with external technical guidance.");
-        System.out.println("=".repeat(70));
-        
         for (int i = 0; i < scenarios.length; i++) {
-            BusinessScenario scenario = scenarios[i];
-            System.out.println("\n📊 SCENARIO " + (i + 1) + "/3: " + scenario.title);
-            System.out.println("-".repeat(50));
-            System.out.println("❓ QUESTION: " + scenario.question);
-            System.out.println("🎯 BUSINESS CONTEXT: " + scenario.context);
-            System.out.println("📚 EXPECTED SOURCE: " + scenario.expectedSource);
-            System.out.println("🎓 LEARNING POINT: " + scenario.learningPoint);
-            System.out.println("-".repeat(50));
+            String title = scenarios[i][0];
+            String question = scenarios[i][1];
             
-            System.out.println("🤖 ASSISTANT RESPONSE:");
-            ChatResponse response = chatWithAssistant(config.agent.getId(), scenario.question);
+            System.out.println(title + " " + (i + 1) + "/" + scenarios.length);
+            System.out.println("❓ " + question);
             
-            if ("completed".equals(response.status) && response.response != null && 
-                response.response.trim().length() > 10) {
-                String preview = response.response.length() > 300 ? 
-                    response.response.substring(0, 300) + "..." : response.response;
-                System.out.println("✅ SUCCESS: " + preview);
-                if (response.response.length() > 300) {
-                    System.out.println("   📏 Full response: " + response.response.length() + " characters");
-                }
-            } else {
-                System.out.println("⚠️  LIMITED RESPONSE: " + response.response);
-                if (!config.hasSharePoint && scenario.expectedSource.contains("SharePoint")) {
-                    System.out.println("   💡 This demonstrates graceful degradation when SharePoint is unavailable");
-                }
+            AgentThread thread = client.createThread();
+            client.createMessage(thread.getId(), MessageRole.USER, question);
+            
+            ThreadRun run = client.createRun(thread.getId(), agent.getId());
+            
+            while (run.getStatus() == RunStatus.QUEUED || run.getStatus() == RunStatus.IN_PROGRESS) {
+                TimeUnit.MILLISECONDS.sleep(1000);
+                run = client.getRun(thread.getId(), run.getId());
             }
             
-            System.out.println("📈 STATUS: " + response.status);
-            System.out.println("-".repeat(50));
-        }
-        
-        System.out.println("\n✅ DEMONSTRATION COMPLETED!");
-        System.out.println("🎓 Key Learning Outcomes:");
-        System.out.println("   • Multi-source data integration in enterprise AI");
-        System.out.println("   • Robust error handling and graceful degradation");
-        System.out.println("   • Real business value through combined intelligence");
-        System.out.println("   • Foundation for governance and monitoring (Tutorials 2-3)");
-    }
-    
-    static ChatResponse chatWithAssistant(String agentId, String message) throws InterruptedException {
-        try {
-            AgentThread thread = projectClient.createThread();
-            projectClient.createMessage(thread.getId(), "user", message);
-            ThreadRun run = projectClient.createRun(thread.getId(), agentId);
-            
-            // Poll for completion
-            while ("queued".equals(run.getStatus()) || 
-                   "in_progress".equals(run.getStatus()) ||
-                   "requires_action".equals(run.getStatus())) {
-                TimeUnit.MILLISECONDS.sleep(500);
-                run = projectClient.getRun(thread.getId(), run.getId());
-            }
-            
-            List<ThreadMessage> messages = projectClient.listMessages(thread.getId());
-            StringBuilder responseParts = new StringBuilder();
-            
-            for (ThreadMessage msg : messages) {
-                if ("assistant".equals(msg.getRole())) {
-                    for (MessageContent content : msg.getContent()) {
-                        if (content instanceof MessageTextContent) {
-                            responseParts.append(((MessageTextContent) content).getText());
+            if (run.getStatus() == RunStatus.COMPLETED) {
+                List<ThreadMessage> messages = client.listMessages(thread.getId(), 
+                    new ListMessagesOptions().setOrder(ListSortOrder.DESCENDING));
+                
+                for (ThreadMessage message : messages) {
+                    if (message.getRole() == MessageRole.ASSISTANT) {
+                        for (MessageContent content : message.getContentItems()) {
+                            if (content instanceof MessageTextContent) {
+                                System.out.println("🤖 " + ((MessageTextContent) content).getText() + "\n");
+                                break;
+                            }
                         }
+                        break;
                     }
                 }
+            } else {
+                System.out.println("❌ Run failed with status: " + run.getStatus() + "\n");
             }
             
-            return new ChatResponse(responseParts.toString(), run.getStatus());
-        } catch (Exception e) {
-            return new ChatResponse("Error in conversation: " + e.getMessage(), "failed");
+            client.deleteThread(thread.getId());
         }
-    }
-    
-    public static void main(String[] args) {
-        System.out.println("🚀 Azure AI Foundry - Modern Workplace Assistant");
-        System.out.println("Tutorial 1: Building Enterprise Agents with SharePoint + MCP Integration");
-        System.out.println("=".repeat(70));
         
-        try {
-            AgentConfiguration agentConfig = createWorkplaceAssistant();
-            demonstrateBusinessScenarios(agentConfig);
-            
-            System.out.println("\n🎉 Sample completed successfully!");
-            System.out.println("📚 This foundation supports Tutorial 2 (Governance) and Tutorial 3 (Production)");
-            System.out.println("🔗 Next: Add evaluation metrics, monitoring, and production deployment");
-        } catch (Exception e) {
-            System.err.println("❌ Sample failed: " + e.getMessage());
-            e.printStackTrace();
-            System.exit(1);
-        }
+        System.out.println("\n💡 Interactive Mode");
+        System.out.println("The agent is ready. In a production scenario, you would integrate this with your application's user interface.");
+        System.out.println("Users could ask questions combining company policies with technical implementation guidance.\n");
+        
+        client.deleteAgent(agent.getId());
     }
 }

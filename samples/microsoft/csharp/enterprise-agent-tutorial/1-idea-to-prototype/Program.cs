@@ -2,49 +2,48 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Azure;
-using Azure.Core;
 using Azure.AI.Agents.Persistent;
 using Azure.Identity;
 using DotNetEnv;
-using System.Text.Json;
 
-// Load environment variables
 Env.Load();
 
 var projectEndpoint = Environment.GetEnvironmentVariable("PROJECT_ENDPOINT");
 var modelDeploymentName = Environment.GetEnvironmentVariable("MODEL_DEPLOYMENT_NAME");
-var sharepointResourceName = Environment.GetEnvironmentVariable("SHAREPOINT_RESOURCE_NAME");
+var sharepointSiteUrl = Environment.GetEnvironmentVariable("SHAREPOINT_SITE_URL");
 var mcpServerUrl = Environment.GetEnvironmentVariable("MCP_SERVER_URL") ?? "https://learn.microsoft.com/api/mcp";
 
 PersistentAgentsClient client = new(projectEndpoint, new DefaultAzureCredential());
 
 Console.WriteLine("🤖 Creating Modern Workplace Assistant...\n");
 
-// Check SharePoint availability
-Console.WriteLine("📁 Configuring SharePoint integration...");
-Console.WriteLine($"   Connection: {sharepointResourceName}");
-
 bool hasSharePoint = false;
-var tools = new List<object>();
+List<ToolDefinition> tools = new();
+ToolResources toolResources = null;
 
-if (!string.IsNullOrEmpty(sharepointResourceName))
+if (!string.IsNullOrEmpty(sharepointSiteUrl))
 {
     try
     {
-        // Try to verify SharePoint connection exists
-        // Note: Connection verification would require connections API
-        Console.WriteLine("✅ SharePoint configured");
+        Console.WriteLine("📁 Configuring SharePoint integration...");
+        Console.WriteLine($"   Site URL: {sharepointSiteUrl}");
+
+        VectorStoreDataSource dataSource = new(
+            assetIdentifier: sharepointSiteUrl,
+            assetType: VectorStoreDataSourceAssetType.UriAsset
+        );
+
+        PersistentAgentsVectorStore vectorStore = await client.VectorStores.CreateVectorStoreAsync(
+            name: "company_policies",
+            storeConfiguration: new VectorStoreConfiguration(dataSources: new[] { dataSource })
+        );
+
+        FileSearchToolResource fileSearchResource = new(new[] { vectorStore.Id }, null);
+        toolResources = new ToolResources { FileSearch = fileSearchResource };
+        tools.Add(new FileSearchToolDefinition());
+
+        Console.WriteLine("✅ SharePoint connected via Enterprise File Search");
         hasSharePoint = true;
-        
-        // Add SharePoint tool using inline JSON
-        tools.Add(new
-        {
-            type = "sharepoint_grounding",
-            sharepoint_grounding = new
-            {
-                connection_id = sharepointResourceName
-            }
-        });
     }
     catch (Exception ex)
     {
@@ -53,61 +52,44 @@ if (!string.IsNullOrEmpty(sharepointResourceName))
     }
 }
 
-// Add MCP tool using inline JSON
-Console.WriteLine("📚 Configuring Microsoft Learn MCP integration...");
-tools.Add(new
-{
-    type = "mcp",
-    mcp = new
-    {
-        server_url = mcpServerUrl,
-        server_name = "microsoft_learn"
-    }
-});
-Console.WriteLine($"✅ Microsoft Learn MCP connected: {mcpServerUrl}");
+Console.WriteLine("📚 Microsoft Learn integration via MCP...");
+Console.WriteLine($"   MCP URL: {mcpServerUrl}");
+Console.WriteLine("   Note: MCP integration requires runtime support");
 
-// Build dynamic instructions
 var instructions = hasSharePoint ?
     @"You are a Modern Workplace Assistant for Contoso Corporation.
 
 CAPABILITIES:
-- Search SharePoint for company policies, procedures, and internal documentation
-- Access Microsoft Learn for current Azure and Microsoft 365 technical guidance
+- Search company policies and procedures in SharePoint
+- Access Microsoft Learn for Azure and Microsoft 365 technical guidance
 - Provide comprehensive solutions combining internal requirements with external implementation
 
 RESPONSE STRATEGY:
-- For policy questions: Search SharePoint for company-specific requirements
+- For policy questions: Search company documents for specific requirements
 - For technical questions: Use Microsoft Learn for Azure/M365 documentation
 - For implementation questions: Combine both sources to show how company policies map to technical implementation" :
     @"You are a Technical Assistant with access to Microsoft Learn documentation.
 
 CAPABILITIES:
-- Access Microsoft Learn for current Azure and Microsoft 365 technical guidance
-- Provide detailed implementation steps and best practices
+- Provide Azure and Microsoft 365 technical guidance
+- Offer detailed implementation steps and best practices
 
 LIMITATIONS:
 - SharePoint integration is not available
 - Cannot access company-specific policies";
 
-Console.WriteLine($"🛠️  Configuring agent tools...");
-Console.WriteLine($"   Available tools: {tools.Count}");
+Console.WriteLine($"\n🛠️  Creating agent with {tools.Count} tool(s)...");
 
-// Create agent using RequestContent pattern for tools not yet in SDK
-var agentPayload = new
-{
-    name = "Modern Workplace Assistant",
-    model = modelDeploymentName,
-    instructions = instructions,
-    tools = tools.ToArray()
-};
-
-RequestContent agentRequestContent = RequestContent.Create(BinaryData.FromObjectAsJson(agentPayload));
-Response agentResponse = await client.Administration.CreateAgentAsync(content: agentRequestContent);
-PersistentAgent agent = PersistentAgent.FromResponse(agentResponse);
+PersistentAgent agent = await client.Administration.CreateAgentAsync(
+    model: modelDeploymentName,
+    name: "Modern Workplace Assistant",
+    instructions: instructions,
+    tools: tools,
+    toolResources: toolResources
+);
 
 Console.WriteLine($"✅ Agent created: {agent.Id}\n");
 
-// Business scenarios
 var scenarios = new[]
 {
     new
@@ -138,7 +120,6 @@ for (int i = 0; i < scenarios.Length; i++)
     
     ThreadRun run = await client.Runs.CreateRunAsync(thread.Id, agent.Id);
     
-    // Poll for completion
     do
     {
         await Task.Delay(TimeSpan.FromMilliseconds(1000));
@@ -148,14 +129,14 @@ for (int i = 0; i < scenarios.Length; i++)
 
     if (run.Status == RunStatus.Completed)
     {
-        AsyncPageable<ThreadMessage> messages = client.Messages.GetMessagesAsync(
+        AsyncPageable<PersistentThreadMessage> messages = client.Messages.GetMessagesAsync(
             threadId: thread.Id,
             order: ListSortOrder.Descending
         );
 
-        await foreach (ThreadMessage message in messages)
+        await foreach (PersistentThreadMessage message in messages)
         {
-            if (message.Role == MessageRole.Assistant)
+            if (message.Role == MessageRole.Agent)
             {
                 foreach (MessageContent content in message.ContentItems)
                 {
@@ -181,5 +162,4 @@ Console.WriteLine("\n💡 Interactive Mode");
 Console.WriteLine("The agent is ready. In a production scenario, you would integrate this with your application's user interface.");
 Console.WriteLine("Users could ask questions combining company policies with technical implementation guidance.\n");
 
-// Cleanup
 await client.Administration.DeleteAgentAsync(agent.Id);

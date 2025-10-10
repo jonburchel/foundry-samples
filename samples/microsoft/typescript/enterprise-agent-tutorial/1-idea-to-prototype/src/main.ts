@@ -1,4 +1,3 @@
-// #region imports_and_setup
 import { AIProjectsClient } from "@azure/ai-projects";
 import { DefaultAzureCredential } from "@azure/identity";
 import * as dotenv from "dotenv";
@@ -9,16 +8,13 @@ const projectEndpoint = process.env.PROJECT_ENDPOINT!;
 const modelDeploymentName = process.env.MODEL_DEPLOYMENT_NAME!;
 const sharepointResourceName = process.env.SHAREPOINT_RESOURCE_NAME;
 const mcpServerUrl = process.env.MCP_SERVER_URL || "https://learn.microsoft.com/api/mcp";
-// #endregion imports_and_setup
 
-// #region create_workplace_assistant
 async function createWorkplaceAssistant(): Promise<void> {
     console.log("🤖 Creating Modern Workplace Assistant...\n");
 
     const credential = new DefaultAzureCredential();
     const client = new AIProjectsClient(projectEndpoint, credential);
 
-    // Check SharePoint availability
     let sharepointAvailable = false;
     if (sharepointResourceName) {
         try {
@@ -37,7 +33,6 @@ async function createWorkplaceAssistant(): Promise<void> {
         }
     }
 
-    // Define tools using inline JSON (workaround until TypeScript SDK has SharepointTool/McpTool classes)
     const tools: any[] = [];
 
     if (sharepointAvailable && sharepointResourceName) {
@@ -57,7 +52,6 @@ async function createWorkplaceAssistant(): Promise<void> {
         }
     });
 
-    // Build dynamic instructions
     let instructions = "You are a Modern Workplace Assistant helping employees with company policies and technical implementation.";
     
     if (sharepointAvailable) {
@@ -68,7 +62,6 @@ async function createWorkplaceAssistant(): Promise<void> {
         instructions += "\n\nFor technical questions about Azure, Microsoft 365, or other Microsoft products, use the Microsoft Learn MCP server to provide accurate, up-to-date information with reference links.";
     }
 
-    // Create the agent
     const agent = await client.agents.createAgent(modelDeploymentName, {
         name: "Modern Workplace Assistant",
         instructions: instructions,
@@ -77,7 +70,6 @@ async function createWorkplaceAssistant(): Promise<void> {
 
     console.log(`✅ Agent created: ${agent.id}\n`);
 
-    // Business scenarios
     const scenarios = [
         {
             type: "📋 Policy Question",
@@ -103,7 +95,6 @@ async function createWorkplaceAssistant(): Promise<void> {
         
         const run = await client.agents.createRun(thread.id, agent.id);
         
-        // Poll for completion
         let runStatus = await client.agents.getRun(thread.id, run.id);
         while (runStatus.status === "in_progress" || runStatus.status === "queued") {
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -130,10 +121,7 @@ async function createWorkplaceAssistant(): Promise<void> {
     console.log("The agent is ready. In a production scenario, you would integrate this with your application's user interface.");
     console.log("Users could ask questions combining company policies with technical implementation guidance.\n");
 
-    // Cleanup
     await client.agents.deleteAgent(agent.id);
 }
-// #endregion create_workplace_assistant
 
-// Run the assistant
 createWorkplaceAssistant().catch(console.error);
