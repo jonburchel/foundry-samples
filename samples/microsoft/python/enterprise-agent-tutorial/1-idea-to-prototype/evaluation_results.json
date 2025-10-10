@@ -1,0 +1,52 @@
+[
+  {
+    "question": "What is our remote work policy regarding security requirements?",
+    "response": "Our remote work policy regarding security requirements at Contoso Corp includes the following key points:\n\n- A secure VPN connection is required for remote access.\n- Use of Microsoft 365 and Azure services is mandatory.\n- Multi-factor authentication (MFA) must be enabled.\n- Personal devices used for remote work must meet defined security standards.\n- All data must be stored in approved cloud services such as SharePoint and OneDrive.\n- Sensitive data is not allowed to be stored on personal devices.\n- Employees are required to complete regular security training.\n- Security incidents must be reported within 2 hours.\n\nThis policy supports secure and compliant remote work while leveraging Microsoft technologies for protection and collaboration.\n\nFor more details, please see the Contoso Remote Work Policy document\u30103:1\u2020source\u3011.",
+    "status": "completed",
+    "contains_expected": true,
+    "expected_keywords": [
+      "remote",
+      "work",
+      "security",
+      "VPN",
+      "authentication"
+    ]
+  },
+  {
+    "question": "How do I set up Azure Active Directory conditional access?",
+    "response": "Here is a step-by-step guide to set up Azure Active Directory Conditional Access:\n\n1. Sign in to the Azure portal (https://portal.azure.com) and open your Active Directory tenant.\n\n2. Navigate to the Security section and click on Conditional Access.\n\n3. Click on New policy to create a new Conditional Access policy.\n\n4. Enter a meaningful name for your policy.\n\n5. Under Assignments, select Users and groups. Choose the users or groups the policy will apply to.\n\n6. Under Cloud apps or actions, select the cloud apps or actions you want the policy to target.\n\n7. Under Conditions, select the conditions that will trigger the policy, such as device platform, location, or sign-in risk.\n\n8. Under Access controls, configure the controls that the policy will enforce, such as requiring multi-factor authentication (MFA), blocking access, or requiring compliant devices.\n\n9. Enable the policy.\n\n10. Click Create to save the policy.\n\nTip: You can use the \"What If\" tool in the Azure portal to troubleshoot and validate your Conditional Access policies before applying them broadly.\n\nImportant notes:\n- Conditional Access is available in Azure AD Premium tiers.\n- Carefully plan and test your policies to avoid unintended lockouts.\n- Consider excluding emergency access or break-glass accounts from restrictive policies for recovery purposes.\n\nFor full detailed documentation and best practices, you can visit:\nhttps://learn.microsoft.com/en-us/azure/active-directory/conditional-access/overview\n\nIf you want, I can provide you with a more detailed guide or help with configuring specific conditions or controls in your Conditional Access policy. Would you like me to do that?",
+    "status": "completed",
+    "contains_expected": true,
+    "expected_keywords": [
+      "Azure",
+      "Active Directory",
+      "conditional access",
+      "configure"
+    ]
+  },
+  {
+    "question": "What collaboration tools are approved for internal use?",
+    "response": "I was unable to find specific Contoso internal policies or documents regarding the approved collaboration tools for internal use. \n\nTo address this need:\n1. I recommend checking with your IT department or intranet site where approved software lists are typically maintained.\n2. Alternatively, standard approved collaboration tools in many enterprises usually include Microsoft Teams, SharePoint, and Outlook within Microsoft 365, given their integration and security compliance.\n3. If you want, I can provide a summary of best practice collaboration tools available in Microsoft 365 that are commonly approved for safe internal collaboration.\n\nWould you like me to proceed with that summary? Or is there any other specific collaboration scenario you need help with?",
+    "status": "completed",
+    "contains_expected": true,
+    "expected_keywords": [
+      "Teams",
+      "SharePoint",
+      "collaboration",
+      "approved"
+    ]
+  },
+  {
+    "question": "How do I implement multi-factor authentication in Azure AD?",
+    "response": "To implement multi-factor authentication (MFA) in Azure Active Directory (Azure AD), you can follow these general steps, which include enabling MFA via user flows or conditional access policies depending on your environment setup:\n\n1. Sign in to the Azure portal (https://portal.azure.com).\n\n2. Navigate to Azure Active Directory.\n\n3. For Azure AD B2C (Business to Customer scenarios), you enable MFA in user flows:\n   - Go to Azure AD B2C > User flows.\n   - Select the user flow you want to enable MFA for (e.g., sign-in or sign-up flows).\n   - Under Properties, find the Multifactor authentication section.\n   - Choose the MFA enforcement option: Off, Always on, or Conditional.\n   - Select the MFA methods you want to allow (phone call, SMS, email, authenticator app - TOTP).\n   - Save your changes.\n   This approach allows you to require MFA during sign-up and sign-in based on your settings and conditional access policies.\n   \n4. For regular Azure AD tenants (not B2C), you can configure MFA via Conditional Access policies:\n   - Go to Azure AD > Security > Conditional Access.\n   - Create a new policy targeting users or groups.\n   - Define the conditions (such as sign-in risk, device platform, location).\n   - In Access controls > Grant, require multi-factor authentication.\n   - Enable and save the policy.\n\n5. You can also enable per-user MFA settings from the Azure AD portal under Users > Multi-Factor Authentication, but Conditional Access is preferred for greater flexibility.\n\n6. Users will then be prompted to register MFA methods such as Microsoft Authenticator app, phone call, SMS code, or email during sign-in based on your settings.\n\nAdditional Notes:\n- Authenticator app (TOTP) provides stronger security than SMS or email.\n- Conditional Access offers flexible policies to enforce MFA only under certain conditions.\n- Administrators and privileged users are recommended to have MFA enabled first.\n- Legacy password-based authentication should be minimized or used with strong password policies.\n\nFor detailed guidance, prerequisites, verification methods, and policy examples, refer to the Microsoft documentation:  \nhttps://learn.microsoft.com/en-us/azure/active-directory/authentication/howto-mfa-getstarted  \nhttps://learn.microsoft.com/en-us/azure/active-directory-b2c/multi-factor-authentication  \n\nWould you like me to guide you through configuring MFA specifically for Azure AD B2C or Azure AD Conditional Access policies?",
+    "status": "completed",
+    "contains_expected": true,
+    "expected_keywords": [
+      "multi-factor",
+      "authentication",
+      "Azure",
+      "MFA",
+      "implement"
+    ]
+  }
+]
