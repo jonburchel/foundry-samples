@@ -8,7 +8,7 @@ import io.github.cdimascio.dotenv.Dotenv;
 
 import java.io.*;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -55,7 +55,7 @@ public class Evaluate {
         List<Map<String, String>> questions = new ArrayList<>();
         Gson gson = new Gson();
         
-        try (BufferedReader br = Files.newBufferedReader(Paths.get("questions.jsonl"))) {
+        try (BufferedReader br = Files.newBufferedReader(Path.of("questions.jsonl"))) {
             String line;
             while ((line = br.readLine()) != null) {
                 @SuppressWarnings("unchecked")
@@ -141,7 +141,7 @@ public class Evaluate {
         summary.put("results", results);
         
         String json = new GsonBuilder().setPrettyPrinting().create().toJson(summary);
-        Files.write(Paths.get("evaluation_results.json"), json.getBytes());
+        Files.write(Path.of("evaluation_results.json"), json.getBytes());
         
         System.out.println("📊 Evaluation Complete:");
         System.out.println("   Total: " + questions.size());
