@@ -33,7 +33,11 @@ async function runEvaluation(): Promise<void> {
     if (sharepointResourceName) {
         try {
             const connections = await client.connections.list();
-            sharepointAvailable = connections.some((conn: any) => conn.name === sharepointResourceName);
+            const connectionsList: any[] = [];
+            for await (const conn of connections) {
+                connectionsList.push(conn);
+            }
+            sharepointAvailable = connectionsList.some((conn: any) => conn.name === sharepointResourceName);
             if (sharepointAvailable) {
                 console.log("✅ SharePoint configured for evaluation\n");
             }
@@ -92,25 +96,29 @@ async function runEvaluation(): Promise<void> {
         const q = questions[i];
         console.log(`Question ${i + 1}/${questions.length}: ${q.question}`);
 
-        const thread = await client.agents.createThread();
-        await client.agents.createMessage(thread.id, "user", q.question);
+        const thread = await client.agents.threads.create();
+        await client.agents.messages.create(thread.id, "user", q.question);
         
-        const run = await client.agents.createRun(thread.id, agent.id);
+        const run = await client.agents.runs.create(thread.id, agent.id);
         
-        let runStatus = await client.agents.getRun(thread.id, run.id);
+        let runStatus = await client.agents.runs.get(thread.id, run.id);
         while (runStatus.status === "in_progress" || runStatus.status === "queued") {
             await new Promise(resolve => setTimeout(resolve, 1000));
-            runStatus = await client.agents.getRun(thread.id, run.id);
+            runStatus = await client.agents.runs.get(thread.id, run.id);
         }
 
         let response = "";
         if (runStatus.status === "completed") {
-            const messages = await client.agents.listMessages(thread.id);
-            const lastMessage = messages.data[0];
-            if (lastMessage.content && lastMessage.content.length > 0) {
-                const content = lastMessage.content[0];
-                if (content.type === "text") {
-                    response = content.text.value;
+            const messages = client.agents.messages.list(thread.id);
+            for await (const message of messages) {
+                if (message.role === "assistant") {
+                    if (message.content && message.content.length > 0) {
+                        const content = message.content[0];
+                        if (content.type === "text" && "text" in content) {
+                            response = content.text.value;
+                        }
+                    }
+                    break;
                 }
             }
         }
@@ -134,7 +142,7 @@ async function runEvaluation(): Promise<void> {
             response_length: response.length
         });
 
-        await client.agents.deleteThread(thread.id);
+        await client.agents.threads.delete(thread.id);
     }
 
     await client.agents.deleteAgent(agent.id);
