@@ -12,14 +12,27 @@ var projectEndpoint = Environment.GetEnvironmentVariable("PROJECT_ENDPOINT");
 var modelDeploymentName = Environment.GetEnvironmentVariable("MODEL_DEPLOYMENT_NAME");
 var sharepointSiteUrl = Environment.GetEnvironmentVariable("SHAREPOINT_SITE_URL");
 var mcpServerUrl = Environment.GetEnvironmentVariable("MCP_SERVER_URL") ?? "https://learn.microsoft.com/api/mcp";
+var tenantId = Environment.GetEnvironmentVariable("AI_FOUNDRY_TENANT_ID");
 
-PersistentAgentsClient client = new(projectEndpoint, new DefaultAzureCredential());
+// Use AzureCliCredential when tenant ID is provided to ensure correct tenant authentication
+Azure.Core.TokenCredential credential;
+if (!string.IsNullOrEmpty(tenantId))
+{
+    Console.WriteLine($"🔐 Using AI Foundry tenant: {tenantId}");
+    credential = new AzureCliCredential(new AzureCliCredentialOptions { TenantId = tenantId });
+}
+else
+{
+    credential = new DefaultAzureCredential();
+}
+
+PersistentAgentsClient client = new(projectEndpoint!, credential);
 
 Console.WriteLine("🤖 Creating Modern Workplace Assistant...\n");
 
 bool hasSharePoint = false;
 List<ToolDefinition> tools = new();
-ToolResources toolResources = null;
+ToolResources? toolResources = null;
 
 if (!string.IsNullOrEmpty(sharepointSiteUrl))
 {
@@ -84,7 +97,7 @@ PersistentAgent agent = await client.Administration.CreateAgentAsync(
     model: modelDeploymentName,
     name: "Modern Workplace Assistant",
     instructions: instructions,
-    tools: tools,
+    tools: tools.Count > 0 ? tools : null,
     toolResources: toolResources
 );
 

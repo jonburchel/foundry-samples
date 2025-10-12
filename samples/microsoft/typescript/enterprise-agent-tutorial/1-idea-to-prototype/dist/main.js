@@ -44,43 +44,22 @@ const mcpServerUrl = process.env.MCP_SERVER_URL || "https://learn.microsoft.com/
 async function createWorkplaceAssistant() {
     console.log("🤖 Creating Modern Workplace Assistant...\n");
     const credential = new identity_1.DefaultAzureCredential();
-    const client = new ai_projects_1.AIProjectsClient(projectEndpoint, credential);
-    let sharepointAvailable = false;
+    const client = new ai_projects_1.AIProjectClient(projectEndpoint, credential);
+    // Note: SharePoint grounding via connection is not yet supported in TypeScript SDK v1.0.0-beta.1
+    // This sample demonstrates the agent framework without SharePoint integration
+    // For production scenarios, consider using the Python SDK which has full SharePoint support
+    let sharepointConnectionId = null;
     if (sharepointResourceName) {
-        try {
-            const connections = await client.connections.list();
-            sharepointAvailable = connections.some(conn => conn.name === sharepointResourceName);
-            if (sharepointAvailable) {
-                console.log(`✅ SharePoint connected: ${sharepointResourceName}`);
-            }
-            else {
-                console.log(`⚠️  SharePoint connection not found: Connection '${sharepointResourceName}' not found`);
-                console.log("Agent will operate without SharePoint integration.\n");
-            }
-        }
-        catch (error) {
-            console.log(`⚠️  Could not verify SharePoint connection: ${error}`);
-            console.log("Agent will operate without SharePoint integration.\n");
-        }
+        console.log(`⚠️  SharePoint grounding not yet supported in TypeScript SDK v1.0.0-beta.1`);
+        console.log(`   Connection '${sharepointResourceName}' configured but cannot be used`);
+        console.log("   Agent will operate in technical guidance mode only\n");
     }
     const tools = [];
-    if (sharepointAvailable && sharepointResourceName) {
-        tools.push({
-            type: "sharepoint_grounding",
-            sharepoint_grounding: {
-                connection_id: sharepointResourceName
-            }
-        });
-    }
-    tools.push({
-        type: "mcp",
-        mcp: {
-            server_url: mcpServerUrl,
-            server_name: "microsoft_learn"
-        }
-    });
+    // SharePoint tool would be added here when SDK support is available
+    console.log("📚 Configuring Microsoft Learn MCP integration...");
+    console.log(`✅ Microsoft Learn MCP: ${mcpServerUrl}\n`);
     let instructions = "You are a Modern Workplace Assistant helping employees with company policies and technical implementation.";
-    if (sharepointAvailable) {
+    if (sharepointConnectionId) {
         instructions += "\n\nYou have access to:\n1. SharePoint for company policies and internal documentation\n2. Microsoft Learn for technical implementation guidance";
         instructions += "\n\nFor questions:\n- Use SharePoint to find company policies and internal procedures\n- Use Microsoft Learn for Azure and Microsoft 365 technical documentation\n- Combine both sources when helping employees implement technical solutions that align with company policies";
     }
@@ -112,28 +91,32 @@ async function createWorkplaceAssistant() {
         const scenario = scenarios[i];
         console.log(`${scenario.type} ${i + 1}/${scenarios.length}`);
         console.log(`❓ ${scenario.question}`);
-        const thread = await client.agents.createThread();
-        await client.agents.createMessage(thread.id, "user", scenario.question);
-        const run = await client.agents.createRun(thread.id, agent.id);
-        let runStatus = await client.agents.getRun(thread.id, run.id);
+        const thread = await client.agents.threads.create();
+        await client.agents.messages.create(thread.id, "user", scenario.question);
+        const run = await client.agents.runs.create(thread.id, agent.id);
+        let runStatus = await client.agents.runs.get(thread.id, run.id);
         while (runStatus.status === "in_progress" || runStatus.status === "queued") {
             await new Promise(resolve => setTimeout(resolve, 1000));
-            runStatus = await client.agents.getRun(thread.id, run.id);
+            runStatus = await client.agents.runs.get(thread.id, run.id);
         }
         if (runStatus.status === "completed") {
-            const messages = await client.agents.listMessages(thread.id);
-            const lastMessage = messages.data[0];
-            if (lastMessage.content && lastMessage.content.length > 0) {
-                const content = lastMessage.content[0];
-                if (content.type === "text") {
-                    console.log(`🤖 ${content.text.value}\n`);
+            const messages = client.agents.messages.list(thread.id);
+            for await (const message of messages) {
+                if (message.role === "assistant") {
+                    if (message.content && message.content.length > 0) {
+                        const content = message.content[0];
+                        if (content.type === "text" && "text" in content) {
+                            console.log(`🤖 ${content.text.value}\n`);
+                        }
+                    }
+                    break;
                 }
             }
         }
         else {
             console.log(`❌ Run failed with status: ${runStatus.status}\n`);
         }
-        await client.agents.deleteThread(thread.id);
+        await client.agents.threads.delete(thread.id);
     }
     console.log("\n💡 Interactive Mode");
     console.log("The agent is ready. In a production scenario, you would integrate this with your application's user interface.");

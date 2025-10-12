@@ -15,45 +15,26 @@ async function createWorkplaceAssistant(): Promise<void> {
     const credential = new DefaultAzureCredential();
     const client = new AIProjectClient(projectEndpoint, credential);
 
-    let sharepointAvailable = false;
+    // Note: SharePoint grounding via connection is not yet supported in TypeScript SDK v1.0.0-beta.1
+    // This sample demonstrates the agent framework without SharePoint integration
+    // For production scenarios, consider using the Python SDK which has full SharePoint support
+    
+    let sharepointConnectionId: string | null = null;
     if (sharepointResourceName) {
-        try {
-            const connections = await client.connections.list();
-            const connectionsList: any[] = [];
-            for await (const conn of connections) {
-                connectionsList.push(conn);
-            }
-            sharepointAvailable = connectionsList.some((conn: any) => conn.name === sharepointResourceName);
-            
-            if (sharepointAvailable) {
-                console.log(`✅ SharePoint connected: ${sharepointResourceName}`);
-            } else {
-                console.log(`⚠️  SharePoint connection not found: Connection '${sharepointResourceName}' not found`);
-                console.log("Agent will operate without SharePoint integration.\n");
-            }
-        } catch (error) {
-            console.log(`⚠️  Could not verify SharePoint connection: ${error}`);
-            console.log("Agent will operate without SharePoint integration.\n");
-        }
+        console.log(`⚠️  SharePoint grounding not yet supported in TypeScript SDK v1.0.0-beta.1`);
+        console.log(`   Connection '${sharepointResourceName}' configured but cannot be used`);
+        console.log("   Agent will operate in technical guidance mode only\n");
     }
 
     const tools: any[] = [];
-
-    if (sharepointAvailable && sharepointResourceName) {
-        tools.push({
-            type: "sharepoint_grounding",
-            sharepoint_grounding: {
-                connection_id: sharepointResourceName
-            }
-        });
-    }
+    // SharePoint tool would be added here when SDK support is available
 
     console.log("📚 Configuring Microsoft Learn MCP integration...");
     console.log(`✅ Microsoft Learn MCP: ${mcpServerUrl}\n`);
 
     let instructions = "You are a Modern Workplace Assistant helping employees with company policies and technical implementation.";
     
-    if (sharepointAvailable) {
+    if (sharepointConnectionId) {
         instructions += "\n\nYou have access to:\n1. SharePoint for company policies and internal documentation\n2. Microsoft Learn for technical implementation guidance";
         instructions += "\n\nFor questions:\n- Use SharePoint to find company policies and internal procedures\n- Use Microsoft Learn for Azure and Microsoft 365 technical documentation\n- Combine both sources when helping employees implement technical solutions that align with company policies";
     } else {
