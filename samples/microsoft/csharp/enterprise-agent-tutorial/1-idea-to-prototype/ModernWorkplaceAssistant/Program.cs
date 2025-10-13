@@ -78,7 +78,8 @@ class Program
     /// </summary>
     private static async Task<(string agentId, bool hasSharePoint)> CreateWorkplaceAssistantAsync()
     {
-        Env.Load();
+        // Load environment variables from shared directory
+        Env.Load("../shared/.env");
 
         var projectEndpoint = Environment.GetEnvironmentVariable("PROJECT_ENDPOINT");
         var modelDeploymentName = Environment.GetEnvironmentVariable("MODEL_DEPLOYMENT_NAME");

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Azure;
 using Azure.AI.Agents.Persistent;
+using Azure.Core;
 using Azure.Identity;
 using DotNetEnv;
 
@@ -13,44 +14,63 @@ class EvaluateProgram
 {
     static async Task Main(string[] args)
     {
-        Env.Load();
+        // Load environment variables from shared directory
+        Env.Load("../shared/.env");
 
         var projectEndpoint = Environment.GetEnvironmentVariable("PROJECT_ENDPOINT");
         var modelDeploymentName = Environment.GetEnvironmentVariable("MODEL_DEPLOYMENT_NAME");
-        var sharepointSiteUrl = Environment.GetEnvironmentVariable("SHAREPOINT_SITE_URL");
+        var sharepointConnectionId = Environment.GetEnvironmentVariable("SHAREPOINT_CONNECTION_ID");
+        var mcpServerUrl = Environment.GetEnvironmentVariable("MCP_SERVER_URL");
+        var tenantId = Environment.GetEnvironmentVariable("AI_FOUNDRY_TENANT_ID");
 
-        PersistentAgentsClient client = new(projectEndpoint, new DefaultAzureCredential());
+        // Use tenant-specific credential if provided
+        TokenCredential credential;
+        if (!string.IsNullOrEmpty(tenantId))
+        {
+            credential = new AzureCliCredential(new AzureCliCredentialOptions { TenantId = tenantId });
+        }
+        else
+        {
+            credential = new DefaultAzureCredential();
+        }
+
+        PersistentAgentsClient client = new(projectEndpoint, credential);
 
         Console.WriteLine("🧪 Modern Workplace Assistant Evaluation\n");
 
         List<ToolDefinition> tools = new();
-        ToolResources? toolResources = null;
 
-        if (!string.IsNullOrEmpty(sharepointSiteUrl))
+        // Add SharePoint tool if configured
+        if (!string.IsNullOrEmpty(sharepointConnectionId))
         {
             try
             {
-                VectorStoreDataSource dataSource = new(
-                    assetIdentifier: sharepointSiteUrl,
-                    assetType: VectorStoreDataSourceAssetType.UriAsset
-                );
-
-                PersistentAgentsVectorStore vectorStore = await client.VectorStores.CreateVectorStoreAsync(
-                    name: "company_policies_eval",
-                    storeConfiguration: new VectorStoreConfiguration(dataSources: new[] { dataSource })
-                );
-
-                FileSearchToolResource fileSearchResource = new(new[] { vectorStore.Id }, null);
-                toolResources = new ToolResources { FileSearch = fileSearchResource };
-                tools.Add(new FileSearchToolDefinition());
-
-                Console.WriteLine("✅ SharePoint configured for evaluation\n");
+                SharepointToolDefinition sharepointTool = new(new SharepointGroundingToolParameters(sharepointConnectionId));
+                tools.Add(sharepointTool);
+                Console.WriteLine("✅ SharePoint configured for evaluation");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"⚠️  SharePoint unavailable: {ex.Message}\n");
+                Console.WriteLine($"⚠️  SharePoint unavailable: {ex.Message}");
             }
         }
+
+        // Add MCP tool if configured
+        if (!string.IsNullOrEmpty(mcpServerUrl))
+        {
+            try
+            {
+                MCPToolDefinition mcpTool = new("microsoft_learn", mcpServerUrl);
+                tools.Add(mcpTool);
+                Console.WriteLine("✅ MCP configured for evaluation");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️  MCP unavailable: {ex.Message}");
+            }
+        }
+
+        Console.WriteLine();
 
         var instructions = @"You are a Modern Workplace Assistant for Contoso Corporation.
 Answer questions using available tools and provide specific, detailed responses.";
@@ -59,12 +79,11 @@ Answer questions using available tools and provide specific, detailed responses.
             model: modelDeploymentName,
             name: "Evaluation Agent",
             instructions: instructions,
-            tools: tools,
-            toolResources: toolResources
+            tools: tools
         );
 
-        var questions = File.ReadAllLines("questions.jsonl")
-            .Select(line => JsonSerializer.Deserialize<Dictionary<string, string>>(line))
+        var questions = File.ReadAllLines("../shared/questions.jsonl")
+            .Select(line => JsonSerializer.Deserialize<JsonElement>(line))
             .ToList();
 
         var results = new List<object>();
@@ -73,9 +92,16 @@ Answer questions using available tools and provide specific, detailed responses.
 
         for (int i = 0; i < questions.Count; i++)
         {
-            var q = questions[i]!;
-            var question = q["question"];
-            var expectedKeywords = q.ContainsKey("expected_keywords") ? q["expected_keywords"].Split(',') : Array.Empty<string>();
+            var q = questions[i];
+            var question = q.GetProperty("question").GetString()!;
+            
+            string[] expectedKeywords = Array.Empty<string>();
+            if (q.TryGetProperty("expected_keywords", out var keywordsElem))
+            {
+                expectedKeywords = keywordsElem.EnumerateArray()
+                    .Select(e => e.GetString()!)
+                    .ToArray();
+            }
             
             Console.WriteLine($"Question {i + 1}/{questions.Count}: {question}");
 
@@ -84,12 +110,37 @@ Answer questions using available tools and provide specific, detailed responses.
             
             ThreadRun run = await client.Runs.CreateRunAsync(thread.Id, agent.Id);
             
-            do
+            // Poll for completion with MCP approval handling
+            while (run.Status == RunStatus.Queued || 
+                   run.Status == RunStatus.InProgress || 
+                   run.Status == RunStatus.RequiresAction)
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(1000));
                 run = await client.Runs.GetRunAsync(thread.Id, run.Id);
+
+                // Handle MCP tool approval requests
+                if (run.Status == RunStatus.RequiresAction && 
+                    run.RequiredAction is SubmitToolApprovalAction toolApprovalAction)
+                {
+                    var toolApprovals = new List<ToolApproval>();
+                    foreach (var toolCall in toolApprovalAction.SubmitToolApproval.ToolCalls)
+                    {
+                        if (toolCall is RequiredMcpToolCall mcpToolCall)
+                        {
+                            toolApprovals.Add(new ToolApproval(mcpToolCall.Id, approve: true));
+                        }
+                    }
+
+                    if (toolApprovals.Count > 0)
+                    {
+                        run = await client.Runs.SubmitToolOutputsToRunAsync(
+                            thread.Id, 
+                            run.Id, 
+                            toolApprovals: toolApprovals
+                        );
+                    }
+                }
             }
-            while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress);
 
             string response = "";
             if (run.Status == RunStatus.Completed)
