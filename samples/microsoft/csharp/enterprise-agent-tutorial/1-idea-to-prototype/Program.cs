@@ -33,7 +33,6 @@ using DotNetEnv;
 class Program
 {
     private static PersistentAgentsClient? client;
-    private static BinaryData? mcpToolDef;
 
     static async Task Main(string[] args)
     {
@@ -83,7 +82,7 @@ class Program
 
         var projectEndpoint = Environment.GetEnvironmentVariable("PROJECT_ENDPOINT");
         var modelDeploymentName = Environment.GetEnvironmentVariable("MODEL_DEPLOYMENT_NAME");
-        var sharepointSiteUrl = Environment.GetEnvironmentVariable("SHAREPOINT_SITE_URL");
+        var sharepointConnectionId = Environment.GetEnvironmentVariable("SHAREPOINT_CONNECTION_ID");
         var mcpServerUrl = Environment.GetEnvironmentVariable("MCP_SERVER_URL") ?? "https://learn.microsoft.com/api/mcp";
         var tenantId = Environment.GetEnvironmentVariable("AI_FOUNDRY_TENANT_ID");
 
@@ -117,40 +116,32 @@ class Program
 
         bool hasSharePoint = false;
         List<ToolDefinition> tools = new();
-        ToolResources? toolResources = null;
 
-        if (!string.IsNullOrEmpty(sharepointSiteUrl))
+        Console.WriteLine("📁 Configuring SharePoint integration...");
+        Console.WriteLine($"   Connection ID: {sharepointConnectionId}");
+
+        if (!string.IsNullOrEmpty(sharepointConnectionId))
         {
             try
             {
-                Console.WriteLine("📁 Configuring SharePoint integration...");
-                Console.WriteLine($"   Site URL: {sharepointSiteUrl}");
-
-                VectorStoreDataSource dataSource = new(
-                    assetIdentifier: sharepointSiteUrl,
-                    assetType: VectorStoreDataSourceAssetType.UriAsset
+                // Use the SharePoint connection ID directly from environment
+                // This matches the official C# SDK pattern for connection-based tools
+                SharepointToolDefinition sharepointTool = new(
+                    new SharepointGroundingToolParameters(sharepointConnectionId)
                 );
-
-                PersistentAgentsVectorStore vectorStore = await client.VectorStores.CreateVectorStoreAsync(
-                    name: "company_policies",
-                    storeConfiguration: new VectorStoreConfiguration(dataSources: new[] { dataSource })
-                );
-
-                FileSearchToolResource fileSearchResource = new(new[] { vectorStore.Id }, null);
-                toolResources = new ToolResources { FileSearch = fileSearchResource };
-                tools.Add(new FileSearchToolDefinition());
-
-                Console.WriteLine("✅ SharePoint successfully connected");
+                
+                tools.Add(sharepointTool);
                 hasSharePoint = true;
+                Console.WriteLine($"✅ SharePoint successfully configured with connection ID");
             }
             catch (Exception ex)
             {
-                // Graceful degradation - system continues without SharePoint
                 Console.WriteLine($"⚠️  SharePoint connection failed: {ex.Message}");
                 Console.WriteLine("   Agent will operate in technical guidance mode only");
                 Console.WriteLine("   📝 To enable full functionality:");
-                Console.WriteLine("      Create SharePoint connection in Azure AI Foundry portal");
-                Console.WriteLine($"      Site URL: {sharepointSiteUrl}");
+                Console.WriteLine("      1. Create SharePoint connection in Azure AI Foundry portal");
+                Console.WriteLine("      2. Copy the connection ID from the portal");
+                Console.WriteLine("      3. Set SHAREPOINT_CONNECTION_ID in your .env file");
             }
         }
 
@@ -164,13 +155,11 @@ class Program
         // - Latest feature updates and capabilities
 
         Console.WriteLine("📚 Configuring Microsoft Learn MCP integration...");
-        mcpToolDef = BinaryData.FromObjectAsJson(new
-        {
-            type = "mcp",
-            server_label = "microsoft_learn",
-            server_url = mcpServerUrl,
-            require_approval = "never"  // Disable approval workflow for seamless demonstration
-        });
+        
+        // Create MCP tool definition
+        MCPToolDefinition mcpTool = new("microsoft_learn", mcpServerUrl);
+        tools.Add(mcpTool);
+        
         Console.WriteLine($"✅ Microsoft Learn MCP connected: {mcpServerUrl}");
 
         // ========================================================================
@@ -224,23 +213,16 @@ RESPONSE STRATEGY:
 
         // Create the agent with appropriate tool configuration
         Console.WriteLine("🛠️  Configuring agent tools...");
-        
-        // Add MCP tool to the tools list
-        // Note: MCP tools in C# are added as BinaryData for now until SDK has first-class support
-        var allToolDefinitions = new List<ToolDefinition>(tools);
-        Console.WriteLine($"   Available tools: {allToolDefinitions.Count} + MCP");
+        Console.WriteLine($"   Available tools: {tools.Count}");
 
         PersistentAgent agent = await client.Administration.CreateAgentAsync(
             model: modelDeploymentName!,
             name: "Modern Workplace Assistant",
             instructions: instructions,
-            tools: allToolDefinitions,
-            toolResources: toolResources
+            tools: tools
         );
 
         Console.WriteLine($"✅ Agent created successfully: {agent.Id}");
-        Console.WriteLine($"⚠️  Note: MCP integration requires additional SDK support (coming soon)");
-        Console.WriteLine($"   For now, this sample demonstrates SharePoint + standard tools");
         
         return (agent.Id, hasSharePoint);
     }
@@ -360,26 +342,66 @@ RESPONSE STRATEGY:
             // Add user message to thread
             await client.Messages.CreateMessageAsync(thread.Id, MessageRole.User, message);
 
-            // Execute the conversation
-            ThreadRun run = await client.Runs.CreateRunAsync(thread.Id, agentId);
+            // ========================================================================
+            // TOOL RESOURCE CONFIGURATION - EXPERIMENT #4
+            // ========================================================================
+            // Python passes: tool_resources=mcp_tool.resources (MCP only)
+            // C# SDK Issue: Passing MCP tool_resources causes SharePoint to fail
+            // 
+            // NEW APPROACH: Don't pass tool_resources, handle MCP approval manually
+            // This matches the official SharePoint sample which passes no tool_resources
+            
+            PersistentAgent agent = await client.Administration.GetAgentAsync(agentId);
+            
+            // Create run WITHOUT tool_resources
+            // Both SharePoint and MCP are configured at agent level
+            ThreadRun run = await client.Runs.CreateRunAsync(thread, agent);
 
-            // Poll for completion
-            do
+            // Poll for completion with MCP approval handling
+            // Since we didn't pass MCP tool_resources with "never" approval,
+            // we need to manually approve MCP tool calls when they're requested
+            while (run.Status == RunStatus.Queued || 
+                   run.Status == RunStatus.InProgress || 
+                   run.Status == RunStatus.RequiresAction)
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(500));
                 run = await client.Runs.GetRunAsync(thread.Id, run.Id);
 
-                // Handle tool approvals if needed (for MCP tools set to require approval)
-                // Since we set require_approval to "never", this code path won't be reached for MCP tools
-                if (run.Status == RunStatus.RequiresAction && run.RequiredAction != null)
+                // Handle MCP tool approval requests
+                if (run.Status == RunStatus.RequiresAction && 
+                    run.RequiredAction is SubmitToolApprovalAction toolApprovalAction)
                 {
-                    // MCP tool approvals would be handled here if require_approval was not set to "never"
+                    Console.WriteLine($"   🔧 MCP tool requires approval ({toolApprovalAction.SubmitToolApproval.ToolCalls.Count} calls)");
+                    
+                    var toolApprovals = new List<ToolApproval>();
+                    foreach (var toolCall in toolApprovalAction.SubmitToolApproval.ToolCalls)
+                    {
+                        if (toolCall is RequiredMcpToolCall mcpToolCall)
+                        {
+                            Console.WriteLine($"      ✅ Auto-approving: {mcpToolCall.Name}");
+                            toolApprovals.Add(new ToolApproval(mcpToolCall.Id, approve: true));
+                        }
+                    }
+
+                    if (toolApprovals.Count > 0)
+                    {
+                        run = await client.Runs.SubmitToolOutputsToRunAsync(
+                            thread.Id, 
+                            run.Id, 
+                            toolApprovals: toolApprovals
+                        );
+                    }
                 }
             }
-            while (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress || run.Status == RunStatus.RequiresAction);
 
             string finalStatus = run.Status.ToString().ToLower();
             string responseText = string.Empty;
+
+            // Log run status and any errors
+            if (run.Status == RunStatus.Failed && run.LastError != null)
+            {
+                Console.WriteLine($"\n❌ Run failed: {run.LastError.Code} - {run.LastError.Message}");
+            }
 
             if (run.Status == RunStatus.Completed)
             {
@@ -413,6 +435,11 @@ RESPONSE STRATEGY:
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"\n❌ Exception details: {ex.GetType().Name}: {ex.Message}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"   Inner: {ex.InnerException.Message}");
+            }
             return ($"Error in conversation: {ex.Message}", "failed");
         }
     }

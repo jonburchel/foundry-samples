@@ -24,7 +24,7 @@ class EvaluateProgram
         Console.WriteLine("🧪 Modern Workplace Assistant Evaluation\n");
 
         List<ToolDefinition> tools = new();
-        ToolResources toolResources = null;
+        ToolResources? toolResources = null;
 
         if (!string.IsNullOrEmpty(sharepointSiteUrl))
         {
@@ -73,7 +73,7 @@ Answer questions using available tools and provide specific, detailed responses.
 
         for (int i = 0; i < questions.Count; i++)
         {
-            var q = questions[i];
+            var q = questions[i]!;
             var question = q["question"];
             var expectedKeywords = q.ContainsKey("expected_keywords") ? q["expected_keywords"].Split(',') : Array.Empty<string>();
             
