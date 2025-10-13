@@ -119,21 +119,22 @@ class Program
         List<ToolDefinition> tools = new();
 
         Console.WriteLine("📁 Configuring SharePoint integration...");
-        Console.WriteLine($"   Connection ID: {sharepointConnectionId}");
 
         if (!string.IsNullOrEmpty(sharepointConnectionId))
         {
             try
             {
-                // Use the SharePoint connection ID directly from environment
-                // This matches the official C# SDK pattern for connection-based tools
+                // The SharePoint tool requires the full Azure resource ID for the connection
+                // This ID is retrieved from the SHAREPOINT_CONNECTION_ID environment variable
+                // Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.CognitiveServices/accounts/{account}/projects/{project}/connections/{name}
+                
                 SharepointToolDefinition sharepointTool = new(
                     new SharepointGroundingToolParameters(sharepointConnectionId)
                 );
                 
                 tools.Add(sharepointTool);
                 hasSharePoint = true;
-                Console.WriteLine($"✅ SharePoint successfully configured with connection ID");
+                Console.WriteLine($"✅ SharePoint successfully connected");
             }
             catch (Exception ex)
             {
@@ -141,8 +142,7 @@ class Program
                 Console.WriteLine("   Agent will operate in technical guidance mode only");
                 Console.WriteLine("   📝 To enable full functionality:");
                 Console.WriteLine("      1. Create SharePoint connection in Azure AI Foundry portal");
-                Console.WriteLine("      2. Copy the connection ID from the portal");
-                Console.WriteLine("      3. Set SHAREPOINT_CONNECTION_ID in your .env file");
+                Console.WriteLine("      2. Set SHAREPOINT_CONNECTION_ID in .env file");
             }
         }
 
@@ -245,7 +245,7 @@ RESPONSE STRATEGY:
         {
             new
             {
-                Title = "📋 Company Policy Question",
+                Title = "� Company Policy Question",
                 Question = "What is our remote work security policy regarding multi-factor authentication?",
                 Context = "Employee needs to understand company MFA requirements",
                 ExpectedSource = "SharePoint",
@@ -262,7 +262,7 @@ RESPONSE STRATEGY:
             new
             {
                 Title = "🔄 Combined Business Implementation Question",
-                Question = "Our company security policy requires multi-factor authentication for remote workers. How do I implement this requirement using Azure AD?",
+                Question = "What Azure AD configuration should I implement to comply with our company's remote work security policy?",
                 Context = "Need to combine policy requirements with technical implementation",
                 ExpectedSource = "Both SharePoint and MCP",
                 LearningPoint = "Multi-source intelligence combining internal requirements with external implementation"

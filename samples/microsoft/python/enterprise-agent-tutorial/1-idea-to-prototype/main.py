@@ -209,7 +209,7 @@ def demonstrate_business_scenarios(agent, mcp_tool, sharepoint_tool):
         },
         {
             "title": "🔄 Combined Business Implementation Question",
-            "question": "Our company security policy requires multi-factor authentication for remote workers. How do I implement this requirement using Azure AD?",
+            "question": "What Azure AD configuration should I implement to comply with our company's remote work security policy?",
             "context": "Need to combine policy requirements with technical implementation",
             "expected_source": "Both SharePoint and MCP",
             "learning_point": "Multi-source intelligence combining internal requirements with external implementation"
