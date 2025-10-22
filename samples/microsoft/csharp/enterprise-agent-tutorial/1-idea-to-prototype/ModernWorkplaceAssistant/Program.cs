@@ -98,6 +98,7 @@ class Program
         // AUTHENTICATION SETUP
         // ============================================================================
         // <agent_authentication>
+        // NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
         // Support both default Azure credentials and specific tenant authentication
         TokenCredential credential;
         if (!string.IsNullOrEmpty(tenantId))
@@ -132,6 +133,7 @@ class Program
             try
             {
                 // <sharepoint_tool_setup>
+                // NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
                 // The SharePoint tool requires the full Azure resource ID for the connection
                 // This ID is retrieved from the SHAREPOINT_CONNECTION_ID environment variable
                 // Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.CognitiveServices/accounts/{account}/projects/{project}/connections/{name}
@@ -166,6 +168,7 @@ class Program
         // - Latest feature updates and capabilities
 
         // <mcp_tool_setup>
+        // NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
         Console.WriteLine("📚 Configuring Microsoft Learn MCP integration...");
         
         // Create MCP tool definition
@@ -225,6 +228,7 @@ RESPONSE STRATEGY:
         }
 
         // <create_agent_with_tools>
+        // NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
         // Create the agent with appropriate tool configuration
         Console.WriteLine("🛠️  Configuring agent tools...");
         Console.WriteLine($"   Available tools: {tools.Count}");
