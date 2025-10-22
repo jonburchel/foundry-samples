@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Azure;
-using Azure.AI.Agents.Persistent;
+using Azure.AI.Agents;
 using Azure.Core;
 using Azure.Identity;
 using DotNetEnv;
+using OpenAI;
+using OpenAI.Responses;
 
 /*
  * Azure AI Foundry Agent Sample - Tutorial 1: Modern Workplace Assistant
@@ -32,7 +34,7 @@ using DotNetEnv;
 
 class Program
 {
-    private static PersistentAgentsClient? client;
+    private static AgentsClient? client;
 
     static async Task Main(string[] args)
     {
@@ -58,8 +60,9 @@ class Program
         Console.WriteLine("📚 This foundation supports Tutorial 2 (Governance) and Tutorial 3 (Production)");
         Console.WriteLine("🔗 Next: Add evaluation metrics, monitoring, and production deployment");
 
-        // Cleanup
-        await client!.Administration.DeleteAgentAsync(agentId);
+        // Cleanup - Note: In SDK 2.0, agents are versioned and managed differently
+        // Consider whether to delete the agent version or keep it for future runs
+        // await client!.DeleteAgentAsync(agentId); // Uncomment if you want to delete
     }
 
     /// <summary>
@@ -104,7 +107,7 @@ class Program
             credential = new DefaultAzureCredential();
         }
 
-        client = new PersistentAgentsClient(projectEndpoint!, credential);
+        client = new AgentsClient(new Uri(projectEndpoint!), credential);
 
         // ========================================================================
         // SHAREPOINT INTEGRATION SETUP
@@ -216,16 +219,20 @@ RESPONSE STRATEGY:
         Console.WriteLine("🛠️  Configuring agent tools...");
         Console.WriteLine($"   Available tools: {tools.Count}");
 
-        PersistentAgent agent = await client.Administration.CreateAgentAsync(
-            model: modelDeploymentName!,
-            name: "Modern Workplace Assistant",
-            instructions: instructions,
-            tools: tools
+        AgentDefinition agentDefinition = new PromptAgentDefinition(modelDeploymentName!)
+        {
+            Instructions = instructions,
+            Tools = tools
+        };
+
+        AgentVersion agent = await client.CreateAgentVersionAsync(
+            "Modern Workplace Assistant",
+            agentDefinition
         );
 
-        Console.WriteLine($"✅ Agent created successfully: {agent.Id}");
+        Console.WriteLine($"✅ Agent created successfully: {agent.Name}");
         
-        return (agent.Id, hasSharePoint);
+        return (agent.Name, hasSharePoint);
     }
 
     /// <summary>
@@ -329,110 +336,38 @@ RESPONSE STRATEGY:
     /// and includes comprehensive error handling for production readiness.
     /// 
     /// Educational Value:
-    /// - Shows proper thread management and conversation flow
-    /// - Demonstrates non-streaming response handling
+    /// - Shows proper conversation management and response flow
+    /// - Demonstrates OpenAI client pattern with agent references
     /// - Includes timeout and error management patterns
     /// </summary>
-    private static async Task<(string response, string status)> ChatWithAssistantAsync(string agentId, string message)
+    private static async Task<(string response, string status)> ChatWithAssistantAsync(string agentName, string message)
     {
         try
         {
-            // Create conversation thread (maintains conversation context)
-            PersistentAgentThread thread = await client!.Threads.CreateThreadAsync();
+            // Get OpenAI client from the agents client
+            OpenAIClient openAIClient = client!.GetOpenAIClient();
+            OpenAIResponseClient responseClient = openAIClient.GetOpenAIResponseClient(
+                Environment.GetEnvironmentVariable("MODEL_DEPLOYMENT_NAME")!
+            );
 
-            // Add user message to thread
-            await client.Messages.CreateMessageAsync(thread.Id, MessageRole.User, message);
+            // Create a conversation to maintain state
+            AgentConversation conversation = await client.GetConversationsClient().CreateConversationAsync();
 
-            // ========================================================================
-            // TOOL RESOURCE CONFIGURATION - EXPERIMENT #4
-            // ========================================================================
-            // Python passes: tool_resources=mcp_tool.resources (MCP only)
-            // C# SDK Issue: Passing MCP tool_resources causes SharePoint to fail
-            // 
-            // NEW APPROACH: Don't pass tool_resources, handle MCP approval manually
-            // This matches the official SharePoint sample which passes no tool_resources
-            
-            PersistentAgent agent = await client.Administration.GetAgentAsync(agentId);
-            
-            // Create run WITHOUT tool_resources
-            // Both SharePoint and MCP are configured at agent level
-            ThreadRun run = await client.Runs.CreateRunAsync(thread, agent);
+            // Set up response creation options with agent and conversation references
+            ResponseCreationOptions responseCreationOptions = new();
+            responseCreationOptions.SetAgentReference(agentName);
+            responseCreationOptions.SetConversationReference(conversation);
 
-            // Poll for completion with MCP approval handling
-            // Since we didn't pass MCP tool_resources with "never" approval,
-            // we need to manually approve MCP tool calls when they're requested
-            while (run.Status == RunStatus.Queued || 
-                   run.Status == RunStatus.InProgress || 
-                   run.Status == RunStatus.RequiresAction)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(500));
-                run = await client.Runs.GetRunAsync(thread.Id, run.Id);
+            // Create the user message item
+            List<ResponseItem> items = [ResponseItem.CreateUserMessageItem(message)];
 
-                // Handle MCP tool approval requests
-                if (run.Status == RunStatus.RequiresAction && 
-                    run.RequiredAction is SubmitToolApprovalAction toolApprovalAction)
-                {
-                    Console.WriteLine($"   🔧 MCP tool requires approval ({toolApprovalAction.SubmitToolApproval.ToolCalls.Count} calls)");
-                    
-                    var toolApprovals = new List<ToolApproval>();
-                    foreach (var toolCall in toolApprovalAction.SubmitToolApproval.ToolCalls)
-                    {
-                        if (toolCall is RequiredMcpToolCall mcpToolCall)
-                        {
-                            Console.WriteLine($"      ✅ Auto-approving: {mcpToolCall.Name}");
-                            toolApprovals.Add(new ToolApproval(mcpToolCall.Id, approve: true));
-                        }
-                    }
+            // Create response from the agent
+            OpenAIResponse response = await responseClient.CreateResponseAsync(items, responseCreationOptions);
 
-                    if (toolApprovals.Count > 0)
-                    {
-                        run = await client.Runs.SubmitToolOutputsToRunAsync(
-                            thread.Id, 
-                            run.Id, 
-                            toolApprovals: toolApprovals
-                        );
-                    }
-                }
-            }
+            // Extract the response text
+            string responseText = response.GetOutputText();
 
-            string finalStatus = run.Status.ToString().ToLower();
-            string responseText = string.Empty;
-
-            // Log run status and any errors
-            if (run.Status == RunStatus.Failed && run.LastError != null)
-            {
-                Console.WriteLine($"\n❌ Run failed: {run.LastError.Code} - {run.LastError.Message}");
-            }
-
-            if (run.Status == RunStatus.Completed)
-            {
-                // Retrieve the assistant's response
-                AsyncPageable<PersistentThreadMessage> messages = client.Messages.GetMessagesAsync(
-                    threadId: thread.Id,
-                    order: ListSortOrder.Descending
-                );
-
-                await foreach (PersistentThreadMessage msg in messages)
-                {
-                    if (msg.Role == MessageRole.Agent)
-                    {
-                        foreach (MessageContent content in msg.ContentItems)
-                        {
-                            if (content is MessageTextContent textContent)
-                            {
-                                responseText = textContent.Text;
-                                break;
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-
-            // Cleanup thread
-            await client.Threads.DeleteThreadAsync(thread.Id);
-
-            return (responseText, finalStatus);
+            return (responseText, "completed");
         }
         catch (Exception ex)
         {

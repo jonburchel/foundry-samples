@@ -1,5 +1,12 @@
 # Enterprise Agent Tutorial - Stage 1: Idea to Prototype (C#)
 
+> **SDK v2.0 Update:** This sample has been updated to use Azure AI Agents SDK version 2.0.0-alpha.20251016.2. Key changes:
+> - Package: `Azure.AI.Agents.Persistent` → `Azure.AI.Agents` + `OpenAI`
+> - Client: `PersistentAgentsClient` → `AgentsClient`
+> - Agent creation: `CreateAgentAsync()` → `CreateAgentVersionAsync()` with `PromptAgentDefinition`
+> - Conversation: Thread/Run pattern → OpenAI Client with `ResponseCreationOptions`
+> - Agent references: Use `agent.Name` instead of `agent.Id`
+
 This C# implementation demonstrates building and evaluating an enterprise agent with SharePoint and MCP integration using the Azure AI Foundry SDK.
 
 ## Project Structure

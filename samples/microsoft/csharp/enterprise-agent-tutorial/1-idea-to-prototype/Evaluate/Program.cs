@@ -5,10 +5,12 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Azure;
-using Azure.AI.Agents.Persistent;
+using Azure.AI.Agents;
 using Azure.Core;
 using Azure.Identity;
 using DotNetEnv;
+using OpenAI;
+using OpenAI.Responses;
 
 class EvaluateProgram
 {
@@ -34,7 +36,7 @@ class EvaluateProgram
             credential = new DefaultAzureCredential();
         }
 
-        PersistentAgentsClient client = new(projectEndpoint, credential);
+        AgentsClient client = new(new Uri(projectEndpoint), credential);
 
         Console.WriteLine("🧪 Modern Workplace Assistant Evaluation\n");
 
@@ -75,11 +77,15 @@ class EvaluateProgram
         var instructions = @"You are a Modern Workplace Assistant for Contoso Corporation.
 Answer questions using available tools and provide specific, detailed responses.";
 
-        PersistentAgent agent = await client.Administration.CreateAgentAsync(
-            model: modelDeploymentName,
-            name: "Evaluation Agent",
-            instructions: instructions,
-            tools: tools
+        AgentDefinition agentDefinition = new PromptAgentDefinition(modelDeploymentName)
+        {
+            Instructions = instructions,
+            Tools = tools
+        };
+
+        AgentVersion agent = await client.CreateAgentVersionAsync(
+            "Evaluation Agent",
+            agentDefinition
         );
 
         var questions = File.ReadAllLines("../shared/questions.jsonl")
@@ -105,66 +111,32 @@ Answer questions using available tools and provide specific, detailed responses.
             
             Console.WriteLine($"Question {i + 1}/{questions.Count}: {question}");
 
-            PersistentAgentThread thread = await client.Threads.CreateThreadAsync();
-            await client.Messages.CreateMessageAsync(thread.Id, MessageRole.User, question);
-            
-            ThreadRun run = await client.Runs.CreateRunAsync(thread.Id, agent.Id);
-            
-            // Poll for completion with MCP approval handling
-            while (run.Status == RunStatus.Queued || 
-                   run.Status == RunStatus.InProgress || 
-                   run.Status == RunStatus.RequiresAction)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(1000));
-                run = await client.Runs.GetRunAsync(thread.Id, run.Id);
+            // Get OpenAI client from the agents client
+            OpenAIClient openAIClient = client.GetOpenAIClient();
+            OpenAIResponseClient responseClient = openAIClient.GetOpenAIResponseClient(modelDeploymentName);
 
-                // Handle MCP tool approval requests
-                if (run.Status == RunStatus.RequiresAction && 
-                    run.RequiredAction is SubmitToolApprovalAction toolApprovalAction)
-                {
-                    var toolApprovals = new List<ToolApproval>();
-                    foreach (var toolCall in toolApprovalAction.SubmitToolApproval.ToolCalls)
-                    {
-                        if (toolCall is RequiredMcpToolCall mcpToolCall)
-                        {
-                            toolApprovals.Add(new ToolApproval(mcpToolCall.Id, approve: true));
-                        }
-                    }
+            // Create a conversation to maintain state
+            AgentConversation conversation = await client.GetConversationsClient().CreateConversationAsync();
 
-                    if (toolApprovals.Count > 0)
-                    {
-                        run = await client.Runs.SubmitToolOutputsToRunAsync(
-                            thread.Id, 
-                            run.Id, 
-                            toolApprovals: toolApprovals
-                        );
-                    }
-                }
-            }
+            // Set up response creation options with agent and conversation references
+            ResponseCreationOptions responseCreationOptions = new();
+            responseCreationOptions.SetAgentReference(agent.Name);
+            responseCreationOptions.SetConversationReference(conversation);
+
+            // Create the user message item
+            List<ResponseItem> items = [ResponseItem.CreateUserMessageItem(question)];
 
             string response = "";
-            if (run.Status == RunStatus.Completed)
+            try
             {
-                AsyncPageable<PersistentThreadMessage> messages = client.Messages.GetMessagesAsync(
-                    threadId: thread.Id,
-                    order: ListSortOrder.Descending
-                );
-
-                await foreach (PersistentThreadMessage message in messages)
-                {
-                    if (message.Role == MessageRole.Agent)
-                    {
-                        foreach (MessageContent content in message.ContentItems)
-                        {
-                            if (content is MessageTextContent textContent)
-                            {
-                                response = textContent.Text;
-                                break;
-                            }
-                        }
-                        break;
-                    }
-                }
+                // Create response from the agent
+                OpenAIResponse openAIResponse = await responseClient.CreateResponseAsync(items, responseCreationOptions);
+                response = openAIResponse.GetOutputText();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"   ⚠️  Error: {ex.Message}");
+                response = "";
             }
 
             bool passed = response.Length > 50;
@@ -183,11 +155,10 @@ Answer questions using available tools and provide specific, detailed responses.
                 passed,
                 response_length = response.Length
             });
-
-            await client.Threads.DeleteThreadAsync(thread.Id);
         }
 
-        await client.Administration.DeleteAgentAsync(agent.Id);
+        // Cleanup - Note: In SDK 2.0, agents are versioned and managed differently
+        // await client.DeleteAgentAsync(agent.Name); // Uncomment if you want to delete
 
         var summary = new
         {
