@@ -68,6 +68,7 @@ public class EvaluateAgent {
     }
 
     // <load_test_data>
+    // NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
     /**
      * Load test questions from JSONL file
      */
@@ -100,6 +101,7 @@ public class EvaluateAgent {
     // </load_test_data>
 
     // <run_batch_evaluation>
+    // NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
     /**
      * Run evaluation with test questions
      */
@@ -149,6 +151,7 @@ public class EvaluateAgent {
     // </run_batch_evaluation>
 
     // <evaluation_results>
+    // NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
     /**
      * Save evaluation results to JSON file
      */
