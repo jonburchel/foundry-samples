@@ -1,4 +1,5 @@
-﻿using System;
+﻿// <imports_and_includes>
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,6 +12,7 @@ using Azure.Identity;
 using DotNetEnv;
 using OpenAI;
 using OpenAI.Responses;
+// </imports_and_includes>
 
 class EvaluateProgram
 {
@@ -88,10 +90,13 @@ Answer questions using available tools and provide specific, detailed responses.
             agentDefinition
         );
 
+        // <load_test_data>
         var questions = File.ReadAllLines("../shared/questions.jsonl")
             .Select(line => JsonSerializer.Deserialize<JsonElement>(line))
             .ToList();
+        // </load_test_data>
 
+        // <run_batch_evaluation>
         var results = new List<object>();
 
         Console.WriteLine($"Running {questions.Count} evaluation questions...\n");
@@ -156,10 +161,12 @@ Answer questions using available tools and provide specific, detailed responses.
                 response_length = response.Length
             });
         }
+        // </run_batch_evaluation>
 
         // Cleanup - Note: In SDK 2.0, agents are versioned and managed differently
         // await client.DeleteAgentAsync(agent.Name); // Uncomment if you want to delete
 
+        // <evaluation_results>
         var summary = new
         {
             total_questions = questions.Count,
@@ -176,5 +183,6 @@ Answer questions using available tools and provide specific, detailed responses.
         Console.WriteLine($"   Passed: {summary.passed}");
         Console.WriteLine($"   Failed: {summary.failed}");
         Console.WriteLine($"\n📄 Results saved to evaluation_results.json");
+        // </evaluation_results>
     }
 }

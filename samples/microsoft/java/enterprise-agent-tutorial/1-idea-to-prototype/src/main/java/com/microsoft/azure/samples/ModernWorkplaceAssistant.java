@@ -3,6 +3,7 @@
 
 package com.microsoft.azure.samples;
 
+// <imports_and_includes>
 import com.azure.ai.agents.AgentsClient;
 import com.azure.ai.agents.AgentsClientBuilder;
 import com.azure.ai.agents.ConversationsClient;
@@ -20,6 +21,7 @@ import io.github.cdimascio.dotenv.Dotenv;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+// </imports_and_includes>
 
 /**
  * Azure AI Foundry Agent Sample - Tutorial 1: Modern Workplace Assistant
@@ -103,6 +105,7 @@ public class ModernWorkplaceAssistant {
         // ========================================================================
         // AUTHENTICATION SETUP
         // ========================================================================
+        // <agent_authentication>
         String aiFpoundryTenantId = dotenv.get("AI_FOUNDRY_TENANT_ID");
         TokenCredential credential;
         if (aiFpoundryTenantId != null && !aiFpoundryTenantId.isEmpty()) {
@@ -123,6 +126,7 @@ public class ModernWorkplaceAssistant {
         agentsClient = builder.buildClient();
         responsesClient = builder.buildResponsesClient();
         conversationsClient = builder.buildConversationsClient();
+        // </agent_authentication>
 
         // ========================================================================
         // SHAREPOINT INTEGRATION SETUP
@@ -133,6 +137,7 @@ public class ModernWorkplaceAssistant {
         System.out.println("📁 Configuring SharePoint integration...");
         System.out.println("   Connection: " + sharepointResourceName);
 
+        // <sharepoint_tool_setup>
         try {
             // Attempt to retrieve pre-configured SharePoint connection
             // Note: In Java SDK, we'll need to construct the tool with connection info
@@ -147,7 +152,9 @@ public class ModernWorkplaceAssistant {
                     .setSharepointGrounding(groundingParams);
             
             System.out.println("✅ SharePoint successfully connected");
-        } catch (Exception e) {
+        }
+        // </sharepoint_tool_setup>
+        catch (Exception e) {
             // Graceful degradation - system continues without SharePoint
             System.out.println("⚠️  SharePoint connection failed: " + e.getMessage());
             System.out.println("   Agent will operate in technical guidance mode only");
@@ -160,6 +167,7 @@ public class ModernWorkplaceAssistant {
         // ========================================================================
         // MICROSOFT LEARN MCP INTEGRATION SETUP
         // ========================================================================
+        // <mcp_tool_setup>
         System.out.println("📚 Configuring Microsoft Learn MCP integration...");
         String mcpServerUrl = dotenv.get("MCP_SERVER_URL");
         
@@ -169,6 +177,7 @@ public class ModernWorkplaceAssistant {
                 .setAllowedTools(new ArrayList<>()); // Allow all available tools
         
         System.out.println("✅ Microsoft Learn MCP connected: " + mcpServerUrl);
+        // </mcp_tool_setup>
 
         // ========================================================================
         // AGENT CREATION WITH DYNAMIC CAPABILITIES
@@ -217,6 +226,7 @@ RESPONSE STRATEGY:
 """;
         }
 
+        // <create_agent_with_tools>
         // Create the agent with appropriate tool configuration
         System.out.println("🛠️  Configuring agent tools...");
         List<Object> availableTools = new ArrayList<>();
@@ -238,6 +248,7 @@ RESPONSE STRATEGY:
         System.out.println("✅ Agent created successfully: " + agent.getId());
         
         return new AgentCreationResult(agent, mcpTool, sharepointTool);
+        // </create_agent_with_tools>
     }
 
     /**
@@ -290,9 +301,11 @@ RESPONSE STRATEGY:
             System.out.println("🎓 LEARNING POINT: " + scenario.learningPoint);
             System.out.println("-".repeat(50));
 
+            // <agent_conversation>
             // Get response from the agent
             System.out.println("🤖 ASSISTANT RESPONSE:");
             ChatResult result = chatWithAssistant(agent.getName(), mcpTool, scenario.question);
+            // </agent_conversation>
 
             // Display response with analysis
             if ("completed".equals(result.status) && result.response != null && result.response.length() > 10) {

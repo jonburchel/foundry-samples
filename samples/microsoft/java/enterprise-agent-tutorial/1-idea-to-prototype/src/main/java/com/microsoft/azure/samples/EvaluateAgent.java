@@ -3,6 +3,7 @@
 
 package com.microsoft.azure.samples;
 
+// <imports_and_includes>
 import com.azure.ai.agents.AgentsClient;
 import com.azure.ai.agents.AgentsClientBuilder;
 import com.azure.ai.agents.ConversationsClient;
@@ -27,6 +28,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+// </imports_and_includes>
 
 /**
  * Evaluation Script for Modern Workplace Assistant
@@ -65,6 +67,7 @@ public class EvaluateAgent {
         }
     }
 
+    // <load_test_data>
     /**
      * Load test questions from JSONL file
      */
@@ -94,7 +97,9 @@ public class EvaluateAgent {
         
         return questions;
     }
+    // </load_test_data>
 
+    // <run_batch_evaluation>
     /**
      * Run evaluation with test questions
      */
@@ -139,21 +144,24 @@ public class EvaluateAgent {
                     statusIcon, chatResult.response != null ? chatResult.response.length() : 0, chatResult.status));
         }
         
-        // Calculate pass rate
-        long passed = results.stream().filter(r -> r.containsExpected).count();
-        System.out.println(String.format("\n📊 Evaluation Results: %d/%d questions passed", passed, results.size()));
-        
         return results;
     }
+    // </run_batch_evaluation>
 
+    // <evaluation_results>
     /**
      * Save evaluation results to JSON file
      */
     private static void saveResults(List<EvaluationResult> results) throws IOException {
+        // Calculate pass rate
+        long passed = results.stream().filter(r -> r.containsExpected).count();
+        System.out.println(String.format("\n📊 Evaluation Results: %d/%d questions passed", passed, results.size()));
+        
         try (FileWriter writer = new FileWriter("evaluation_results.json")) {
             gson.toJson(results, writer);
         }
     }
+    // </evaluation_results>
 
     /**
      * Default test questions if file not found

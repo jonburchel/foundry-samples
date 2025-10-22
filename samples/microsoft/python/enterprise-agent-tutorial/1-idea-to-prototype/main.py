@@ -21,19 +21,21 @@ An employee needs to implement Azure AD multi-factor authentication. They need:
 3. Combined guidance showing how policy requirements map to technical implementation
 """
 
-#region imports_and_setup
+# <imports_and_includes>
 import os
 import time
 from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential, AzureCliCredential
 from azure.ai.agents.models import SharepointAgentTool, SharepointGroundingToolParameters, ToolProjectConnectionList, MCPTool
 from dotenv import load_dotenv
+# </imports_and_includes>
 
 load_dotenv()
 
 # ============================================================================
 # AUTHENTICATION SETUP
 # ============================================================================
+# <agent_authentication>
 # Support both default Azure credentials and specific tenant authentication
 ai_foundry_tenant_id = os.getenv("AI_FOUNDRY_TENANT_ID")
 if ai_foundry_tenant_id:
@@ -46,9 +48,8 @@ project_client = AIProjectClient(
     endpoint=os.environ["PROJECT_ENDPOINT"],
     credential=credential,
 )
-#endregion imports_and_setup
+# </agent_authentication>
 
-#region create_workplace_assistant
 def create_workplace_assistant():
     """
     Create a Modern Workplace Assistant combining internal and external knowledge.
@@ -84,6 +85,7 @@ def create_workplace_assistant():
     print(f"📁 Configuring SharePoint integration...")
     print(f"   Connection: {sharepoint_resource_name}")
     
+    # <sharepoint_tool_setup>
     try:
         # Attempt to retrieve pre-configured SharePoint connection
         sharepoint_conn = project_client.connections.get(name=sharepoint_resource_name)
@@ -93,6 +95,7 @@ def create_workplace_assistant():
         )
         sharepoint_tool = SharepointAgentTool(sharepoint_grounding=sharepoint_grounding_params)
         print(f"✅ SharePoint successfully connected")
+    # </sharepoint_tool_setup>
             
     except Exception as e:
         # Graceful degradation - system continues without SharePoint
@@ -112,6 +115,7 @@ def create_workplace_assistant():
     # - Troubleshooting and diagnostic information
     # - Latest feature updates and capabilities
     
+    # <mcp_tool_setup>
     print(f"📚 Configuring Microsoft Learn MCP integration...")
     mcp_tool = MCPTool(
         server_label="microsoft_learn",
@@ -121,6 +125,7 @@ def create_workplace_assistant():
     # Disable approval workflow for seamless demonstration (if supported in new SDK)
     # Note: set_approval_mode may not be available in the new SDK - will handle in code
     print(f"✅ Microsoft Learn MCP connected: {os.environ['MCP_SERVER_URL']}")
+    # </mcp_tool_setup>
     
     # ========================================================================
     # AGENT CREATION WITH DYNAMIC CAPABILITIES
@@ -166,6 +171,7 @@ RESPONSE STRATEGY:
 - Reference official documentation and best practices
 - Suggest how technical implementations typically align with enterprise requirements"""
 
+    # <create_agent_with_tools>
     # Create the agent with appropriate tool configuration
     print(f"🛠️  Configuring agent tools...")
     available_tools = []
@@ -188,9 +194,8 @@ RESPONSE STRATEGY:
     
     print(f"✅ Agent created successfully: {agent.id}")
     return agent, mcp_tool, sharepoint_tool
-#endregion create_workplace_assistant
+    # </create_agent_with_tools>
 
-#region demonstrate_business_scenarios
 def demonstrate_business_scenarios(agent, mcp_tool, sharepoint_tool):
     """
     Demonstrate realistic business scenarios combining internal and external knowledge.
@@ -244,9 +249,11 @@ def demonstrate_business_scenarios(agent, mcp_tool, sharepoint_tool):
         print(f"🎓 LEARNING POINT: {scenario['learning_point']}")
         print("-" * 50)
         
+        # <agent_conversation>
         # Get response from the agent
         print("🤖 ASSISTANT RESPONSE:")
         response, status = chat_with_assistant(agent.name, mcp_tool, scenario['question'])
+        # </agent_conversation>
         
         # Display response with analysis
         if status == 'completed' and response and len(response.strip()) > 10:
@@ -359,9 +366,7 @@ def interactive_mode(agent, mcp_tool):
             print("-" * 60)
     
     print("\n👋 Thank you for testing the Modern Workplace Assistant!")
-#endregion demonstrate_business_scenarios
 
-#region main
 def main():
     """
     Main execution flow demonstrating the complete sample.
@@ -391,8 +396,6 @@ def main():
     print(f"\n🎉 Sample completed successfully!")
     print("📚 This foundation supports Tutorial 2 (Governance) and Tutorial 3 (Production)")
     print("🔗 Next: Add evaluation metrics, monitoring, and production deployment")
-#endregion main
 
-#region main_execution
 if __name__ == "__main__":
     main()

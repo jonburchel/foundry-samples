@@ -4,12 +4,12 @@ Evaluation Script for Modern Workplace Assistant
 Tests the agent with predefined business scenarios to assess quality.
 """
 
-#region evaluation_imports
+# <imports_and_includes>
 import json
 from main import create_workplace_assistant, chat_with_assistant
-#endregion evaluation_imports
+# </imports_and_includes>
 
-#region evaluation_functions
+# <load_test_data>
 def load_test_questions(filepath="questions.jsonl"):
     """Load test questions from JSONL file"""
     questions = []
@@ -17,7 +17,9 @@ def load_test_questions(filepath="questions.jsonl"):
         for line in f:
             questions.append(json.loads(line.strip()))
     return questions
+# </load_test_data>
 
+# <run_batch_evaluation>
 def run_evaluation(agent_name, mcp_tool):
     """Run evaluation with test questions"""
     questions = load_test_questions()
@@ -46,14 +48,23 @@ def run_evaluation(agent_name, mcp_tool):
         status_icon = "✅" if contains_expected else "⚠️"
         print(f"{status_icon} Response length: {len(response)} chars (Status: {status})")
     
+    return results
+# </run_batch_evaluation>
+
+# <evaluation_results>
+def calculate_and_save_results(results):
+    """Calculate pass rate and save results"""
     # Calculate pass rate
     passed = sum(1 for r in results if r["contains_expected"])
     print(f"\n📊 Evaluation Results: {passed}/{len(results)} questions passed")
     
-    return results
-#endregion evaluation_functions
+    # Save results
+    with open("evaluation_results.json", "w") as f:
+        json.dump(results, f, indent=2)
+    
+    print(f"💾 Results saved to evaluation_results.json")
+# </evaluation_results>
 
-#region evaluation_main
 def main():
     """Run evaluation on the workplace assistant"""
     print("🧪 Modern Workplace Assistant - Evaluation")
@@ -66,16 +77,11 @@ def main():
         # Run evaluation
         results = run_evaluation(agent.name, mcp_tool)
         
-        # Save results
-        with open("evaluation_results.json", "w") as f:
-            json.dump(results, f, indent=2)
-        
-        print(f"💾 Results saved to evaluation_results.json")
+        # Calculate and save results
+        calculate_and_save_results(results)
         
     except Exception as e:
         print(f"❌ Evaluation failed: {e}")
-#endregion evaluation_main
 
-#region evaluation_execution
 if __name__ == "__main__":
     main()

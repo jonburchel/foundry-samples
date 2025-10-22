@@ -1,3 +1,4 @@
+// <imports_and_includes>
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +10,7 @@ using Azure.Identity;
 using DotNetEnv;
 using OpenAI;
 using OpenAI.Responses;
+// </imports_and_includes>
 
 /*
  * Azure AI Foundry Agent Sample - Tutorial 1: Modern Workplace Assistant
@@ -95,6 +97,7 @@ class Program
         // ============================================================================
         // AUTHENTICATION SETUP
         // ============================================================================
+        // <agent_authentication>
         // Support both default Azure credentials and specific tenant authentication
         TokenCredential credential;
         if (!string.IsNullOrEmpty(tenantId))
@@ -108,6 +111,7 @@ class Program
         }
 
         client = new AgentsClient(new Uri(projectEndpoint!), credential);
+        // </agent_authentication>
 
         // ========================================================================
         // SHAREPOINT INTEGRATION SETUP
@@ -125,6 +129,7 @@ class Program
 
         if (!string.IsNullOrEmpty(sharepointConnectionId))
         {
+            // <sharepoint_tool_setup>
             try
             {
                 // The SharePoint tool requires the full Azure resource ID for the connection
@@ -139,6 +144,7 @@ class Program
                 hasSharePoint = true;
                 Console.WriteLine($"✅ SharePoint successfully connected");
             }
+            // </sharepoint_tool_setup>
             catch (Exception ex)
             {
                 Console.WriteLine($"⚠️  SharePoint connection failed: {ex.Message}");
@@ -158,6 +164,7 @@ class Program
         // - Troubleshooting and diagnostic information
         // - Latest feature updates and capabilities
 
+        // <mcp_tool_setup>
         Console.WriteLine("📚 Configuring Microsoft Learn MCP integration...");
         
         // Create MCP tool definition
@@ -165,6 +172,7 @@ class Program
         tools.Add(mcpTool);
         
         Console.WriteLine($"✅ Microsoft Learn MCP connected: {mcpServerUrl}");
+        // </mcp_tool_setup>
 
         // ========================================================================
         // AGENT CREATION WITH DYNAMIC CAPABILITIES
@@ -215,6 +223,7 @@ RESPONSE STRATEGY:
 - Suggest how technical implementations typically align with enterprise requirements";
         }
 
+        // <create_agent_with_tools>
         // Create the agent with appropriate tool configuration
         Console.WriteLine("🛠️  Configuring agent tools...");
         Console.WriteLine($"   Available tools: {tools.Count}");
@@ -233,6 +242,7 @@ RESPONSE STRATEGY:
         Console.WriteLine($"✅ Agent created successfully: {agent.Name}");
         
         return (agent.Name, hasSharePoint);
+        // </create_agent_with_tools>
     }
 
     /// <summary>
@@ -294,9 +304,11 @@ RESPONSE STRATEGY:
             Console.WriteLine($"🎓 LEARNING POINT: {scenario.LearningPoint}");
             Console.WriteLine("-".PadRight(50, '-'));
 
+            // <agent_conversation>
             // Get response from the agent
             Console.WriteLine("🤖 ASSISTANT RESPONSE:");
             var (response, status) = await ChatWithAssistantAsync(agentId, scenario.Question);
+            // </agent_conversation>
 
             // Display response with analysis
             if (status == "completed" && !string.IsNullOrWhiteSpace(response) && response.Length > 10)
