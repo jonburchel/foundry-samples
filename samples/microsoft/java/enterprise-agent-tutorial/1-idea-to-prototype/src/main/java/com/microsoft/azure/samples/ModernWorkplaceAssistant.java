@@ -106,6 +106,7 @@ public class ModernWorkplaceAssistant {
         // AUTHENTICATION SETUP
         // ========================================================================
         // <agent_authentication>
+        // NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
         String aiFpoundryTenantId = dotenv.get("AI_FOUNDRY_TENANT_ID");
         TokenCredential credential;
         if (aiFpoundryTenantId != null && !aiFpoundryTenantId.isEmpty()) {
@@ -139,7 +140,8 @@ public class ModernWorkplaceAssistant {
 
         try {
             // <sharepoint_tool_setup>
-
+            // NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
+            
             // Attempt to retrieve pre-configured SharePoint connection
             // Note: In Java SDK, we'll need to construct the tool with connection info
             // This is a simplified version - actual implementation may vary based on SDK
@@ -179,6 +181,7 @@ public class ModernWorkplaceAssistant {
         
         System.out.println("✅ Microsoft Learn MCP connected: " + mcpServerUrl);
         // </mcp_tool_setup>
+        // NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
 
         // ========================================================================
         // AGENT CREATION WITH DYNAMIC CAPABILITIES
@@ -228,6 +231,8 @@ RESPONSE STRATEGY:
         }
 
         // <create_agent_with_tools>
+        // NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
+        
         // Create the agent with appropriate tool configuration
         System.out.println("🛠️  Configuring agent tools...");
         List<Object> availableTools = new ArrayList<>();
