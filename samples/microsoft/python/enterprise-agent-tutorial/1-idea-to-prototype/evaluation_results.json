@@ -1,0 +1,57 @@
+[
+  {
+    "question": "What is our remote work policy regarding security requirements?",
+    "response": "Our remote work policy regarding security requirements at Contoso Corp includes the following key points:\n\n- A secure VPN connection is required for remote work access.\n- Use of Microsoft 365 and Azure services is mandatory.\n- Multi-factor authentication (MFA) must be enabled.\n- Personal devices used for remote work must meet security standards.\n- All work-related data must be stored in approved cloud services such as SharePoint and OneDrive.\n- No sensitive data is allowed to be stored on personal devices.\n- Employees must complete regular security training.\n- Any security incidents must be reported within 2 hours.\n\nThese measures ensure that remote work is conducted securely, protecting company data and systems. This policy is reviewed annually and updated as necessary.\n\nSource: Contoso Corp Remote Work Policy document, effective January 2024\u30103:1\u2020source\u3011.",
+    "status": "completed",
+    "contains_expected": true,
+    "expected_keywords": [
+      "remote",
+      "work",
+      "security",
+      "VPN",
+      "authentication"
+    ]
+  },
+  {
+    "question": "How do I set up Azure Active Directory conditional access?",
+    "response": "To set up Azure Active Directory (Azure AD) Conditional Access, follow these steps:\n\n1. In the Azure portal (https://portal.azure.com), open your Active Directory tenant.\n2. Go to the **Security** section and click on **Conditional Access**.\n3. Click **New policy** to create a new Conditional Access policy.\n4. In the new policy settings, under **Cloud apps or actions**, select the application you want to target with the policy.\n5. Configure other conditions you want to apply such as user or group assignments, device platform, location, sign-in risk, etc.\n6. Set the access controls (e.g., require multi-factor authentication, require compliant device).\n7. Enable the policy.\n8. Click **Create** to save the policy.\n\nAdditionally, you can use the \"What If\" tool in the Azure portal to simulate and troubleshoot your Conditional Access policies.\n\nNote: Azure AD Conditional Access is available only in the Premium tier of Azure AD. For more details, consult the Azure Active Directory pricing page.\n\nYou can find the full and detailed documentation here:  \nhttps://learn.microsoft.com/en-us/azure/active-directory/conditional-access/overview\n\nSummary reference for the main setup steps:  \nhttps://learn.microsoft.com/en-us/appcenter/general/configuring-aad-conditional-access\n\nLet me know if you want me to guide you through setting up a specific Conditional Access scenario or policy!",
+    "status": "completed",
+    "contains_expected": true,
+    "expected_keywords": [
+      "Azure",
+      "Active Directory",
+      "conditional access",
+      "configure"
+    ]
+  },
+  {
+    "question": "What collaboration tools are approved for internal use?",
+    "response": "The approved collaboration tools for internal use at Contoso Corporation are:\n\n- Microsoft Teams for meetings and communication\n- SharePoint for document collaboration\n- Azure DevOps for development projects\n- Outlook for email and calendar management\n\nThese tools are specified in the company's Remote Work Policy and Collaboration Standards, ensuring secure and efficient teamwork within the organization. Microsoft Teams is used for internal communication including meetings, SharePoint is used for managing and collaborating on documents, Azure DevOps supports development projects, and Outlook handles email and calendar needs.\u30103:1\u2020source\u3011\u30103:2\u2020source\u3011",
+    "status": "completed",
+    "contains_expected": true,
+    "expected_keywords": [
+      "Teams",
+      "SharePoint",
+      "collaboration",
+      "approved"
+    ]
+  },
+  {
+    "question": "What Azure AD configuration should I implement to comply with our company's remote work security policy?",
+    "response": "Based on Contoso Corp's remote work security policy requirements and Microsoft best practices for Azure AD configuration, here is what you should implement to comply with the company's remote work security policy:\n\n1. Enable Multi-Factor Authentication (MFA) for all users:\n   - Contoso requires MFA to be enabled for remote work.\n   - Use Azure AD Conditional Access policies to enforce MFA for all users, especially for accesses from untrusted locations or devices.\n   - Emergency access accounts should be excluded from MFA policies to avoid lockout.\n   - Block legacy authentication protocols that do not support MFA.\n\n2. Enforce Conditional Access policies supporting the remote work security requirements:\n   - Require secure VPN connection (this might be enforced by location-based Conditional Access).\n   - Require compliant or hybrid Azure AD joined devices for access.\n   - Require access only from approved client apps such as Microsoft Teams, Outlook, and approved browsers.\n   - Use Conditional Access templates for remote worker scenarios, such as blocking legacy authentication, enforcing MFA, and device compliance.\n\n3. Manage access with Role-Based Access Control (RBAC) and Privileged Identity Management (PIM) for sensitive roles.\n\n4. Use Azure Security Center, Sentinel, and Azure Policy for ongoing monitoring and compliance enforcement.\n\nSummary from internal Contoso policy:\n- MFA enabled\n- Use Microsoft 365 and Azure services only\n- Secure VPN required\n- No sensitive data on personal devices\n- Regular security training and incident reporting required\n\nTechnical Microsoft guidance highlights:\n- Create Conditional Access policies to require MFA for all users.\n- Exclude emergency access accounts from these policies.\n- Block legacy authentication.\n- Use Conditional Access templates for remote work.\n- Evaluate sign-in risk with risk-based Conditional Access policies for additional MFA enforcement.\n- Enforce device compliance and app restrictions.\n\nFor detailed steps:\n- Turn off security defaults if enabled.\n- Create baseline Conditional Access policies to require MFA for all users and admins.\n- Add location conditions to allow trusted network/VPN connections.\n- Add device compliance conditions.\n- Enable policy with report-only mode first, then enforce.\n\nReferences:\n- Contoso Remote Work Policy overview and Azure security requirements\u30103:1\u2020source\u3011\u30103:2\u2020source\u3011\n- Microsoft Docs: Set up multifactor authentication for Microsoft 365 using Conditional Access policies: https://learn.microsoft.com/en-us/microsoft-365/admin/security-and-compliance/set-up-multi-factor-authentication?view=o365-worldwide#manage-conditional-access-policies\n- Microsoft Docs: Common Conditional Access policy templates for remote work: https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-conditional-access-policy-common#template-categories\n- Microsoft Docs: Increase sign-in security for hybrid workers with MFA: https://learn.microsoft.com/en-us/microsoft-365/solutions/empower-people-to-work-remotely-secure-sign-in?view=o365-worldwide\n\nIf you want, I can provide step-by-step instructions on how to create these Conditional Access policies in Microsoft Entra (Azure AD). Would you like that?",
+    "status": "completed",
+    "contains_expected": true,
+    "expected_keywords": [
+      "remote",
+      "work",
+      "security",
+      "Azure",
+      "AD",
+      "multi-factor",
+      "MFA",
+      "policy",
+      "conditional",
+      "access"
+    ]
+  }
+]
