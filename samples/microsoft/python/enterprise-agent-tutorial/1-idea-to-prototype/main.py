@@ -85,8 +85,8 @@ def create_workplace_assistant():
     print(f"📁 Configuring SharePoint integration...")
     print(f"   Connection: {sharepoint_resource_name}")
     
-    # <sharepoint_tool_setup>
     try:
+        # <sharepoint_tool_setup>
         # Attempt to retrieve pre-configured SharePoint connection
         sharepoint_conn = project_client.connections.get(name=sharepoint_resource_name)
         # Create SharePoint tool using new SDK API
@@ -95,7 +95,7 @@ def create_workplace_assistant():
         )
         sharepoint_tool = SharepointAgentTool(sharepoint_grounding=sharepoint_grounding_params)
         print(f"✅ SharePoint successfully connected")
-    # </sharepoint_tool_setup>
+        # </sharepoint_tool_setup>
             
     except Exception as e:
         # Graceful degradation - system continues without SharePoint

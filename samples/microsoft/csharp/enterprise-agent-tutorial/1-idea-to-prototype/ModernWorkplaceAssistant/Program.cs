@@ -129,9 +129,9 @@ class Program
 
         if (!string.IsNullOrEmpty(sharepointConnectionId))
         {
-            // <sharepoint_tool_setup>
             try
             {
+                // <sharepoint_tool_setup>
                 // The SharePoint tool requires the full Azure resource ID for the connection
                 // This ID is retrieved from the SHAREPOINT_CONNECTION_ID environment variable
                 // Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.CognitiveServices/accounts/{account}/projects/{project}/connections/{name}
@@ -143,8 +143,9 @@ class Program
                 tools.Add(sharepointTool);
                 hasSharePoint = true;
                 Console.WriteLine($"✅ SharePoint successfully connected");
+                // </sharepoint_tool_setup>
             }
-            // </sharepoint_tool_setup>
+            
             catch (Exception ex)
             {
                 Console.WriteLine($"⚠️  SharePoint connection failed: {ex.Message}");
