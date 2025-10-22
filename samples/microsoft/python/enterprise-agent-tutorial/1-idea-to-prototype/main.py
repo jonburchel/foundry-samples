@@ -36,6 +36,7 @@ load_dotenv()
 # AUTHENTICATION SETUP
 # ============================================================================
 # <agent_authentication>
+# NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
 # Support both default Azure credentials and specific tenant authentication
 ai_foundry_tenant_id = os.getenv("AI_FOUNDRY_TENANT_ID")
 if ai_foundry_tenant_id:
@@ -87,6 +88,7 @@ def create_workplace_assistant():
     
     try:
         # <sharepoint_tool_setup>
+        # NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
         # Attempt to retrieve pre-configured SharePoint connection
         sharepoint_conn = project_client.connections.get(name=sharepoint_resource_name)
         # Create SharePoint tool using new SDK API
@@ -116,6 +118,7 @@ def create_workplace_assistant():
     # - Latest feature updates and capabilities
     
     # <mcp_tool_setup>
+    # NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
     print(f"📚 Configuring Microsoft Learn MCP integration...")
     mcp_tool = MCPTool(
         server_label="microsoft_learn",
@@ -172,6 +175,7 @@ RESPONSE STRATEGY:
 - Suggest how technical implementations typically align with enterprise requirements"""
 
     # <create_agent_with_tools>
+    # NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
     # Create the agent with appropriate tool configuration
     print(f"🛠️  Configuring agent tools...")
     available_tools = []
