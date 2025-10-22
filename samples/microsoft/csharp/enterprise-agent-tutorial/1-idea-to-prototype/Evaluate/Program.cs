@@ -97,6 +97,7 @@ Answer questions using available tools and provide specific, detailed responses.
         // </load_test_data>
 
         // <run_batch_evaluation>
+        // NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
         var results = new List<object>();
 
         Console.WriteLine($"Running {questions.Count} evaluation questions...\n");
@@ -167,6 +168,7 @@ Answer questions using available tools and provide specific, detailed responses.
         // await client.DeleteAgentAsync(agent.Name); // Uncomment if you want to delete
 
         // <evaluation_results>
+        // NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
         var summary = new
         {
             total_questions = questions.Count,
