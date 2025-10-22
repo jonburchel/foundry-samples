@@ -2,7 +2,11 @@
 
 **Tutorial 1** of the Azure AI Foundry enterprise tutorial series. This sample demonstrates how to build AI agents that combine internal knowledge (SharePoint) with external technical guidance (Microsoft Learn) for realistic business scenarios.
 
-> **🚀 Preview SDK**: This sample uses preview versions of the Azure AI SDK. These features will be GA at Microsoft Ignite.
+> **🚀 SDK Update (v2.0)**: This sample has been updated to use the latest Azure AI Foundry SDK version 2.0.0a20251015001. Key changes include:
+> - Updated to `azure-ai-projects>=2.0.0a20251015001` and `azure-ai-agents>=2.0.0a20251015001`
+> - Agent creation now uses `create_version()` with `PromptAgentDefinition`
+> - Conversation handling uses the new OpenAI client pattern with `responses.create()`
+> - Tool definitions updated: `SharepointTool` → `SharepointAgentTool`, `McpTool` → `MCPTool`
 
 ## 🎯 Business Scenario: Modern Workplace Assistant
 

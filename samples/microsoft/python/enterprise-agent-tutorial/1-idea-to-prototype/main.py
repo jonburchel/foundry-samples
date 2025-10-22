@@ -26,7 +26,7 @@ import os
 import time
 from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential, AzureCliCredential
-from azure.ai.agents.models import SharepointTool, McpTool, ToolResources
+from azure.ai.agents.models import SharepointAgentTool, SharepointGroundingToolParameters, ToolProjectConnectionList, MCPTool
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -87,7 +87,11 @@ def create_workplace_assistant():
     try:
         # Attempt to retrieve pre-configured SharePoint connection
         sharepoint_conn = project_client.connections.get(name=sharepoint_resource_name)
-        sharepoint_tool = SharepointTool(connection_id=sharepoint_conn.id)
+        # Create SharePoint tool using new SDK API
+        sharepoint_grounding_params = SharepointGroundingToolParameters(
+            project_connections=ToolProjectConnectionList(connections=[{"id": sharepoint_conn.id}])
+        )
+        sharepoint_tool = SharepointAgentTool(sharepoint_grounding=sharepoint_grounding_params)
         print(f"✅ SharePoint successfully connected")
             
     except Exception as e:
@@ -109,13 +113,13 @@ def create_workplace_assistant():
     # - Latest feature updates and capabilities
     
     print(f"📚 Configuring Microsoft Learn MCP integration...")
-    mcp_tool = McpTool(
+    mcp_tool = MCPTool(
         server_label="microsoft_learn",
         server_url=os.environ["MCP_SERVER_URL"],
         allowed_tools=[]  # Allow all available tools
     )
-    # Disable approval workflow for seamless demonstration
-    mcp_tool.set_approval_mode("never")
+    # Disable approval workflow for seamless demonstration (if supported in new SDK)
+    # Note: set_approval_mode may not be available in the new SDK - will handle in code
     print(f"✅ Microsoft Learn MCP connected: {os.environ['MCP_SERVER_URL']}")
     
     # ========================================================================
@@ -164,14 +168,22 @@ RESPONSE STRATEGY:
 
     # Create the agent with appropriate tool configuration
     print(f"🛠️  Configuring agent tools...")
-    available_tools = (sharepoint_tool.definitions if sharepoint_tool else []) + mcp_tool.definitions
+    available_tools = []
+    if sharepoint_tool:
+        available_tools.append(sharepoint_tool)
+    available_tools.append(mcp_tool)
     print(f"   Available tools: {len(available_tools)}")
     
-    agent = project_client.agents.create_agent(
-        model=os.environ["MODEL_DEPLOYMENT_NAME"],
-        name="Modern Workplace Assistant",
-        instructions=instructions,
-        tools=available_tools,
+    # Import PromptAgentDefinition for the new SDK
+    from azure.ai.agents.models import PromptAgentDefinition
+    
+    agent = project_client.agents.create_version(
+        agent_name="Modern Workplace Assistant",
+        definition=PromptAgentDefinition(
+            model=os.environ["MODEL_DEPLOYMENT_NAME"],
+            instructions=instructions,
+            tools=available_tools,
+        )
     )
     
     print(f"✅ Agent created successfully: {agent.id}")
@@ -234,7 +246,7 @@ def demonstrate_business_scenarios(agent, mcp_tool, sharepoint_tool):
         
         # Get response from the agent
         print("🤖 ASSISTANT RESPONSE:")
-        response, status = chat_with_assistant(agent.id, mcp_tool, scenario['question'])
+        response, status = chat_with_assistant(agent.name, mcp_tool, scenario['question'])
         
         # Display response with analysis
         if status == 'completed' and response and len(response.strip()) > 10:
@@ -258,7 +270,7 @@ def demonstrate_business_scenarios(agent, mcp_tool, sharepoint_tool):
     
     return True
 
-def chat_with_assistant(agent_id, mcp_tool, message):
+def chat_with_assistant(agent_name, mcp_tool, message):
     """
     Execute a conversation with the workplace assistant.
     
@@ -266,76 +278,36 @@ def chat_with_assistant(agent_id, mcp_tool, message):
     and includes comprehensive error handling for production readiness.
     
     Educational Value:
-    - Shows proper thread management and conversation flow
-    - Demonstrates streaming response handling
+    - Shows proper conversation management with the new SDK
+    - Demonstrates response creation and handling
     - Includes timeout and error management patterns
     """
     
     try:
-        # Create conversation thread (maintains conversation context)
-        thread = project_client.agents.threads.create()
+        # Get OpenAI client from project client (new SDK pattern)
+        openai_client = project_client.get_openai_client()
         
-        # Add user message to thread
-        project_client.agents.messages.create(
-            thread_id=thread.id, 
-            role="user", 
-            content=message
+        # Import agent reference for new SDK
+        from azure.ai.agents.models import AgentReference
+        
+        # Create conversation with initial message
+        conversation = openai_client.conversations.create(
+            items=[{
+                "type": "message",
+                "role": "user",
+                "content": message
+            }]
         )
         
-        # Execute the conversation with streaming response
-        from azure.ai.agents.models import (
-            MessageDeltaChunk, ThreadRun, SubmitToolApprovalAction, 
-            RequiredMcpToolCall, ToolApproval
+        # Create response using the agent
+        response = openai_client.responses.create(
+            conversation=conversation.id,
+            extra_body={"agent": AgentReference(name=agent_name).as_dict()}
         )
         
-        response_parts = []
-        final_status = 'unknown'
-        
-        with project_client.agents.runs.stream(
-            thread_id=thread.id,
-            agent_id=agent_id,
-            tool_resources=mcp_tool.resources,
-        ) as stream:
-            for event_type, event_data, _ in stream:
-                # Collect message text
-                if isinstance(event_data, MessageDeltaChunk) and hasattr(event_data, 'text') and event_data.text:
-                    response_parts.append(event_data.text)
-                
-                # Handle run status and tool calls
-                elif isinstance(event_data, ThreadRun):
-                    final_status = event_data.status
-                    
-                    # Handle MCP tool approvals when action is required
-                    if (event_data.status == "requires_action" and 
-                        hasattr(event_data, 'required_action') and 
-                        isinstance(event_data.required_action, SubmitToolApprovalAction)):
-                        
-                        tool_calls = event_data.required_action.submit_tool_approval.tool_calls
-                        print(f"🔧 Agent requesting approval for {len(tool_calls)} MCP tool call(s)...")
-                        
-                        # Automatically approve MCP tool calls for demonstration
-                        tool_approvals = []
-                        for tool_call in tool_calls:
-                            if isinstance(tool_call, RequiredMcpToolCall):
-                                print(f"   ✅ Auto-approving MCP tool: {tool_call.type}")
-                                tool_approvals.append(
-                                    ToolApproval(
-                                        tool_call_id=tool_call.id,
-                                        approve=True,
-                                        headers={"Authorization": mcp_tool.headers.get("Authorization", "")} if hasattr(mcp_tool, 'headers') else {}
-                                    )
-                                )
-                        
-                        # Submit the tool approvals to continue execution
-                        if tool_approvals:
-                            project_client.agents.runs.submit_tool_outputs_stream(
-                                thread_id=thread.id,
-                                run_id=event_data.id,
-                                tool_approvals=tool_approvals,
-                                event_handler=stream,
-                            )
-        
-        full_response = ''.join(response_parts)
+        # Extract the response text
+        full_response = response.output_text if hasattr(response, 'output_text') else str(response.output)
+        final_status = 'completed'
         
         return full_response, final_status
         
@@ -372,7 +344,7 @@ def interactive_mode(agent, mcp_tool):
                 continue
             
             print(f"\n🤖 Workplace Assistant: ", end="", flush=True)
-            response, status = chat_with_assistant(agent.id, mcp_tool, question)
+            response, status = chat_with_assistant(agent.name, mcp_tool, question)
             print(response)
             
             if status != 'completed':

@@ -18,7 +18,7 @@ def load_test_questions(filepath="questions.jsonl"):
             questions.append(json.loads(line.strip()))
     return questions
 
-def run_evaluation(agent_id, mcp_tool):
+def run_evaluation(agent_name, mcp_tool):
     """Run evaluation with test questions"""
     questions = load_test_questions()
     results = []
@@ -28,7 +28,7 @@ def run_evaluation(agent_id, mcp_tool):
     for i, q in enumerate(questions, 1):
         print(f"📝 Question {i}/{len(questions)}: {q['question']}")
         
-        response, status = chat_with_assistant(agent_id, mcp_tool, q["question"])
+        response, status = chat_with_assistant(agent_name, mcp_tool, q["question"])
         
         # Simple evaluation: check if response contains expected keywords
         contains_expected = any(keyword.lower() in response.lower() 
@@ -64,7 +64,7 @@ def main():
         agent, mcp_tool, sharepoint_tool = create_workplace_assistant()
         
         # Run evaluation
-        results = run_evaluation(agent.id, mcp_tool)
+        results = run_evaluation(agent.name, mcp_tool)
         
         # Save results
         with open("evaluation_results.json", "w") as f:
