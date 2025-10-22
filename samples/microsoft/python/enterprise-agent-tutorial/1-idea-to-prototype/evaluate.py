@@ -10,6 +10,7 @@ from main import create_workplace_assistant, chat_with_assistant
 # </imports_and_includes>
 
 # <load_test_data>
+# NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
 def load_test_questions(filepath="questions.jsonl"):
     """Load test questions from JSONL file"""
     questions = []
@@ -20,6 +21,7 @@ def load_test_questions(filepath="questions.jsonl"):
 # </load_test_data>
 
 # <run_batch_evaluation>
+# NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
 def run_evaluation(agent_name, mcp_tool):
     """Run evaluation with test questions"""
     questions = load_test_questions()
@@ -52,6 +54,7 @@ def run_evaluation(agent_name, mcp_tool):
 # </run_batch_evaluation>
 
 # <evaluation_results>
+# NOTE: This code is a non-runnable snippet of the larger sample code from which it is taken.
 def calculate_and_save_results(results):
     """Calculate pass rate and save results"""
     # Calculate pass rate
