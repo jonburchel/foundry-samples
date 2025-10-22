@@ -137,8 +137,9 @@ public class ModernWorkplaceAssistant {
         System.out.println("📁 Configuring SharePoint integration...");
         System.out.println("   Connection: " + sharepointResourceName);
 
-        // <sharepoint_tool_setup>
         try {
+            // <sharepoint_tool_setup>
+
             // Attempt to retrieve pre-configured SharePoint connection
             // Note: In Java SDK, we'll need to construct the tool with connection info
             // This is a simplified version - actual implementation may vary based on SDK
@@ -152,8 +153,8 @@ public class ModernWorkplaceAssistant {
                     .setSharepointGrounding(groundingParams);
             
             System.out.println("✅ SharePoint successfully connected");
+            // </sharepoint_tool_setup>
         }
-        // </sharepoint_tool_setup>
         catch (Exception e) {
             // Graceful degradation - system continues without SharePoint
             System.out.println("⚠️  SharePoint connection failed: " + e.getMessage());
