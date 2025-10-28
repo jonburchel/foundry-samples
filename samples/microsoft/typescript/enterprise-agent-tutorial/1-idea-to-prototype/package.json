@@ -1,0 +1,31 @@
+{
+  "name": "modern-workplace-assistant-typescript",
+  "version": "1.0.0",
+  "description": "Azure AI Foundry Enterprise Agent Tutorial - Tutorial 1: Modern Workplace Assistant",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "dev": "tsc && node dist/main.js"
+  },
+  "keywords": [
+    "azure",
+    "ai",
+    "agents",
+    "sharepoint",
+    "mcp"
+  ],
+  "author": "Microsoft",
+  "license": "MIT",
+  "dependencies": {
+    "@azure/ai-agents": "^2.0.0-beta.1",
+    "@azure/ai-projects": "^1.0.0-beta.1",
+    "@azure/identity": "^4.0.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}

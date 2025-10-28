@@ -16,15 +16,23 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-        <azure.ai.agents.version>1.0.0-beta.1</azure.ai.agents.version>
+        <azure.ai.agents.version>2.0.0-beta.1</azure.ai.agents.version>
+        <azure.ai.projects.version>1.0.0-beta.1</azure.ai.projects.version>
     </properties>
 
     <dependencies>
-        <!-- Azure AI Agents SDK -->
+        <!-- Azure AI Agents SDK v2 -->
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-ai-agents</artifactId>
             <version>${azure.ai.agents.version}</version>
+        </dependency>
+
+        <!-- Azure AI Projects SDK for connection resolution -->
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-ai-projects</artifactId>
+            <version>${azure.ai.projects.version}</version>
         </dependency>
 
         <!-- Azure Identity -->
@@ -39,13 +47,6 @@
             <groupId>com.azure</groupId>
             <artifactId>azure-core</artifactId>
             <version>1.56.1</version>
-        </dependency>
-
-        <!-- OpenAI Java SDK (transitive dependency but explicitly declared) -->
-        <dependency>
-            <groupId>com.openai</groupId>
-            <artifactId>openai-java</artifactId>
-            <version>3.6.0</version>
         </dependency>
 
         <!-- Dotenv for environment variable management -->
