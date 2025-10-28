@@ -14,25 +14,17 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-        <azure.ai.agents.version>2.0.0-beta.1</azure.ai.agents.version>
-        <azure.ai.projects.version>1.0.0-beta.1</azure.ai.projects.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <azure.ai.agents.version>1.0.0-beta.1</azure.ai.agents.version>
     </properties>
 
     <dependencies>
-        <!-- Azure AI Agents SDK v2 -->
+        <!-- Azure AI Agents SDK -->
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-ai-agents</artifactId>
             <version>${azure.ai.agents.version}</version>
-        </dependency>
-
-        <!-- Azure AI Projects SDK for connection resolution -->
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-ai-projects</artifactId>
-            <version>${azure.ai.projects.version}</version>
         </dependency>
 
         <!-- Azure Identity -->
@@ -47,6 +39,13 @@
             <groupId>com.azure</groupId>
             <artifactId>azure-core</artifactId>
             <version>1.56.1</version>
+        </dependency>
+
+        <!-- OpenAI Java SDK (transitive dependency but explicitly declared) -->
+        <dependency>
+            <groupId>com.openai</groupId>
+            <artifactId>openai-java</artifactId>
+            <version>3.6.0</version>
         </dependency>
 
         <!-- Dotenv for environment variable management -->
@@ -83,8 +82,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>
                 <configuration>
-                    <source>11</source>
-                    <target>11</target>
+                    <source>17</source>
+                    <target>17</target>
                 </configuration>
             </plugin>
             <plugin>

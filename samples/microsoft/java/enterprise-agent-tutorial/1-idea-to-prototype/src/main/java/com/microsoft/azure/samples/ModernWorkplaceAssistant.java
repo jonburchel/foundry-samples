@@ -6,22 +6,23 @@ package com.microsoft.azure.samples;
 // <imports_and_includes>
 import com.azure.ai.agents.AgentsClient;
 import com.azure.ai.agents.AgentsClientBuilder;
-import com.azure.ai.agents.models.*;
-import com.azure.ai.projects.AIProjectClient;
-import com.azure.ai.projects.AIProjectClientBuilder;
-import com.azure.ai.projects.models.Connection;
+import com.azure.ai.agents.ConversationsClient;
+import com.azure.ai.agents.ResponsesClient;
+import com.azure.ai.agents.models.AgentReference;
+import com.azure.ai.agents.models.AgentVersionObject;
+import com.azure.ai.agents.models.PromptAgentDefinition;
 import com.azure.core.credential.TokenCredential;
-import com.azure.core.util.polling.SyncPoller;
-import com.azure.identity.AzureCliCredential;
-import com.azure.identity.AzureCliCredentialBuilder;
 import com.azure.identity.DefaultAzureCredential;
 import com.azure.identity.DefaultAzureCredentialBuilder;
+import com.openai.models.conversations.Conversation;
+import com.openai.models.conversations.items.ItemCreateParams;
+import com.openai.models.responses.EasyInputMessage;
+import com.openai.models.responses.Response;
 import io.github.cdimascio.dotenv.Dotenv;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
-import java.util.stream.Collectors;
 // </imports_and_includes>
 
 /**
@@ -29,7 +30,7 @@ import java.util.stream.Collectors;
  * 
  * This sample demonstrates a complete business scenario using Azure AI Agents SDK v2:
  * - Agent creation with the new SDK
- * - Thread and message management
+ * - Conversation and response management
  * - Robust error handling and graceful degradation
  * 
  * Educational Focus:
@@ -43,26 +44,32 @@ import java.util.stream.Collectors;
  * 1. Company security policy requirements
  * 2. Technical implementation steps
  * 3. Combined guidance showing how policy requirements map to technical implementation
+ * 
+ * Note: This Java implementation uses the Agent SDK v2 beta which has a different
+ * API structure than the Python SDK. Tool integration (SharePoint, MCP) is not yet
+ * available in the Java SDK v2 beta.
  */
 public class ModernWorkplaceAssistant {
 
     private static Dotenv dotenv;
     private static AgentsClient agentsClient;
+    private static ResponsesClient responsesClient;
+    private static ConversationsClient conversationsClient;
 
     public static void main(String[] args) {
         System.out.println("🚀 Azure AI Foundry - Modern Workplace Assistant");
-        System.out.println("Tutorial 1: Building Enterprise Agents with Agent SDK v2");
+        System.out.println("Tutorial 1: Building Enterprise Agents with Agent SDK v2 (Java)");
         System.out.println("=".repeat(70));
 
         try {
-            // Load environment variables
+            // Load environment variables from current directory
             dotenv = Dotenv.configure()
-                .directory("../")
-                .ignoreIfMissing()
-                .load();
+                    .directory("./")
+                    .ignoreIfMissing()
+                    .load();
 
             // Create the agent with full diagnostic output
-            Agent agent = createWorkplaceAssistant();
+            AgentVersionObject agent = createWorkplaceAssistant();
 
             // Demonstrate business scenarios
             demonstrateBusinessScenarios(agent);
@@ -97,17 +104,19 @@ public class ModernWorkplaceAssistant {
      * This demonstrates enterprise AI patterns:
      * 1. Agent creation with the new SDK
      * 2. Robust error handling with graceful degradation
-     * 3. Dynamic agent capabilities based on available resources
-     * 4. Clear diagnostic information for troubleshooting
+     * 3. Clear diagnostic information for troubleshooting
      * 
      * Educational Value:
      * - Shows real-world complexity of enterprise AI systems
      * - Demonstrates how to handle partial system failures
      * - Provides patterns for agent creation with Agent SDK v2
      * 
-     * @return Agent object for further interaction
+     * Note: Tool integration (SharePoint, MCP) is not available in Java SDK v2 beta.
+     * This version demonstrates the core agent functionality.
+     * 
+     * @return AgentVersionObject for further interaction
      */
-    private static Agent createWorkplaceAssistant() {
+    private static AgentVersionObject createWorkplaceAssistant() {
         System.out.println("\n🤖 Creating Modern Workplace Assistant...");
 
         // ========================================================================
@@ -120,187 +129,66 @@ public class ModernWorkplaceAssistant {
         // Support default Azure credentials
         TokenCredential credential = new DefaultAzureCredentialBuilder().build();
 
-        agentsClient = new AgentsClientBuilder()
+        AgentsClientBuilder builder = new AgentsClientBuilder()
                 .endpoint(endpoint)
-                .credential(credential)
-                .buildClient();
+                .credential(credential);
+        
+        agentsClient = builder.buildClient();
+        responsesClient = builder.buildResponsesClient();
+        conversationsClient = builder.buildConversationsClient();
         
         System.out.println("✅ Connected to Azure AI Foundry: " + endpoint);
         // </agent_authentication>
 
         // ========================================================================
-        // SHAREPOINT INTEGRATION SETUP
+        // AGENT CREATION
         // ========================================================================
-        // <sharepoint_connection_resolution>
-        String sharepointResourceName = dotenv.get("SHAREPOINT_RESOURCE_NAME");
-        SharepointToolDefinition sharepointTool = null;
+        String instructions = """
+You are a Technical Assistant specializing in Azure and Microsoft 365 guidance.
 
-        if (sharepointResourceName != null && !sharepointResourceName.isEmpty()) {
-            System.out.println("📁 Configuring SharePoint integration...");
-            System.out.println("   Connection name: " + sharepointResourceName);
+CAPABILITIES:
+- Provide detailed Azure and Microsoft 365 technical guidance
+- Explain implementation steps and best practices
+- Help with Azure AD, Conditional Access, MFA, and security configurations
 
-            try {
-                // Resolve the connection name to its full ARM resource ID
-                System.out.println("   🔍 Resolving connection name to ARM resource ID...");
-                
-                AIProjectClient projectClient = new AIProjectClientBuilder()
-                        .endpoint(endpoint)
-                        .credential(credential)
-                        .buildClient();
-                
-                // List all connections and find the one we need
-                String connectionId = null;
-                for (Connection conn : projectClient.getConnections().list()) {
-                    if (sharepointResourceName.equals(conn.getName())) {
-                        connectionId = conn.getId();
-                        System.out.println("   ✅ Resolved to: " + connectionId);
-                        break;
-                    }
-                }
+RESPONSE STRATEGY:
+- Provide comprehensive technical guidance
+- Include step-by-step implementation instructions
+- Reference best practices and security considerations
+- For policy questions, explain common enterprise policies and how to implement them
+- For technical questions, provide detailed Azure/M365 implementation steps
 
-                if (connectionId == null) {
-                    throw new RuntimeException("Connection '" + sharepointResourceName + "' not found in project");
-                }
+EXAMPLE SCENARIOS:
+- "What is a typical enterprise MFA policy?" → Explain common MFA policies and their implementation
+- "How do I configure Azure AD Conditional Access?" → Provide detailed technical steps
+- "What are the best practices for remote work security?" → Combine policy recommendations with implementation guidance
+""";
 
-                // Create SharePoint tool with the full ARM resource ID
-                sharepointTool = new SharepointToolDefinition(connectionId);
-                System.out.println("✅ SharePoint tool configured successfully");
-
-            } catch (Exception e) {
-                System.out.println("⚠️  SharePoint connection unavailable: " + e.getMessage());
-                System.out.println("   Possible causes:");
-                System.out.println("   - Connection '" + sharepointResourceName + "' doesn't exist in the project");
-                System.out.println("   - Insufficient permissions to access the connection");
-                System.out.println("   - Connection configuration is incomplete");
-                System.out.println("   Agent will operate without SharePoint access");
-                sharepointTool = null;
-            }
-        } else {
-            System.out.println("📁 SharePoint integration skipped (SHAREPOINT_RESOURCE_NAME not set)");
-        }
-        // </sharepoint_connection_resolution>
-
-        // ========================================================================
-        // MICROSOFT LEARN MCP INTEGRATION SETUP
-        // ========================================================================
-        // <mcp_tool_setup>
-        String mcpServerUrl = dotenv.get("MCP_SERVER_URL");
-        McpToolDefinition mcpTool = null;
-
-        if (mcpServerUrl != null && !mcpServerUrl.isEmpty()) {
-            System.out.println("📚 Configuring Microsoft Learn MCP integration...");
-            System.out.println("   Server URL: " + mcpServerUrl);
-
-            try {
-                // Create MCP tool for Microsoft Learn documentation access
-                // server_label must match pattern: ^[a-zA-Z0-9_]+$ (alphanumeric and underscores only)
-                mcpTool = new McpToolDefinition(
-                        mcpServerUrl,
-                        "Microsoft_Learn_Documentation"
-                );
-                System.out.println("✅ MCP tool configured successfully");
-            } catch (Exception e) {
-                System.out.println("⚠️  MCP tool unavailable: " + e.getMessage());
-                System.out.println("   Agent will operate without Microsoft Learn access");
-                mcpTool = null;
-            }
-        } else {
-            System.out.println("📚 MCP integration skipped (MCP_SERVER_URL not set)");
-        }
-        // </mcp_tool_setup>
-
-        // ========================================================================
-        // AGENT CREATION WITH DYNAMIC CAPABILITIES
-        // ========================================================================
-        String instructions;
-        if (sharepointTool != null && mcpTool != null) {
-            instructions = "You are a Modern Workplace Assistant for Contoso Corporation.\n\n" +
-                    "CAPABILITIES:\n" +
-                    "- Search SharePoint for company policies, procedures, and internal documentation\n" +
-                    "- Access Microsoft Learn for current Azure and Microsoft 365 technical guidance\n" +
-                    "- Provide comprehensive solutions combining internal requirements with external implementation\n\n" +
-                    "RESPONSE STRATEGY:\n" +
-                    "- For policy questions: Search SharePoint for company-specific requirements and guidelines\n" +
-                    "- For technical questions: Use Microsoft Learn for current Azure/M365 documentation and best practices\n" +
-                    "- For implementation questions: Combine both sources to show how company policies map to technical implementation\n" +
-                    "- Always cite your sources and provide step-by-step guidance\n" +
-                    "- Explain how internal requirements connect to external implementation steps\n\n" +
-                    "EXAMPLE SCENARIOS:\n" +
-                    "- \"What is our MFA policy?\" → Search SharePoint for security policies\n" +
-                    "- \"How do I configure Azure AD Conditional Access?\" → Use Microsoft Learn for technical steps\n" +
-                    "- \"Our policy requires MFA - how do I implement this?\" → Combine policy requirements with implementation guidance";
-        } else if (sharepointTool != null) {
-            instructions = "You are a Modern Workplace Assistant with access to Contoso Corporation's SharePoint.\n\n" +
-                    "CAPABILITIES:\n" +
-                    "- Search SharePoint for company policies, procedures, and internal documentation\n" +
-                    "- Provide detailed technical guidance based on your knowledge\n" +
-                    "- Combine company policies with general best practices\n\n" +
-                    "RESPONSE STRATEGY:\n" +
-                    "- Search SharePoint for company-specific requirements\n" +
-                    "- Provide technical guidance based on Azure and M365 best practices\n" +
-                    "- Explain how to align implementations with company policies";
-        } else if (mcpTool != null) {
-            instructions = "You are a Technical Assistant with access to Microsoft Learn documentation.\n\n" +
-                    "CAPABILITIES:\n" +
-                    "- Access Microsoft Learn for current Azure and Microsoft 365 technical guidance\n" +
-                    "- Provide detailed implementation steps and best practices\n" +
-                    "- Explain Azure services, features, and configuration options\n\n" +
-                    "RESPONSE STRATEGY:\n" +
-                    "- Use Microsoft Learn for technical documentation\n" +
-                    "- Provide comprehensive implementation guidance\n" +
-                    "- Reference official documentation and best practices";
-        } else {
-            instructions = "You are a Technical Assistant specializing in Azure and Microsoft 365 guidance.\n\n" +
-                    "CAPABILITIES:\n" +
-                    "- Provide detailed Azure and Microsoft 365 technical guidance\n" +
-                    "- Explain implementation steps and best practices\n" +
-                    "- Help with Azure AD, Conditional Access, MFA, and security configurations\n\n" +
-                    "RESPONSE STRATEGY:\n" +
-                    "- Provide comprehensive technical guidance\n" +
-                    "- Include step-by-step implementation instructions\n" +
-                    "- Reference best practices and security considerations";
-        }
-
-        // <create_agent_with_tools>
+        // <create_agent>
         System.out.println("🛠️  Creating agent with model: " + modelDeploymentName);
-
-        // Build tools list
-        List<ToolDefinition> tools = new ArrayList<>();
         
-        if (sharepointTool != null) {
-            tools.add(sharepointTool);
-            System.out.println("   ✓ SharePoint tool added");
-        }
-        
-        if (mcpTool != null) {
-            tools.add(mcpTool);
-            System.out.println("   ✓ MCP tool added");
-        }
-        
-        System.out.println("   Total tools: " + tools.size());
+        // Create agent definition
+        PromptAgentDefinition definition = new PromptAgentDefinition(modelDeploymentName)
+                .setInstructions(instructions);
 
-        // Create agent with or without tools
-        Agent agent;
-        if (!tools.isEmpty()) {
-            agent = agentsClient.createAgent(
-                    modelDeploymentName,
-                    new CreateAgentOptions()
-                            .setName("Modern Workplace Assistant")
-                            .setInstructions(instructions)
-                            .setTools(tools)
-            );
-        } else {
-            agent = agentsClient.createAgent(
-                    modelDeploymentName,
-                    new CreateAgentOptions()
-                            .setName("Modern Workplace Assistant")
-                            .setInstructions(instructions)
-            );
-        }
+        // Create agent version
+        AgentVersionObject agent = agentsClient.createAgentVersion(
+                "Modern_Workplace_Assistant",
+                definition
+        );
 
-        System.out.println("✅ Agent created successfully: " + agent.getId());
+        System.out.println("✅ Agent created successfully");
+        System.out.println("   Agent ID: " + agent.getId());
+        System.out.println("   Agent Name: " + agent.getName());
+        System.out.println("   Agent Version: " + agent.getVersion());
+        
+        System.out.println("\n⚠️  Note: Java SDK v2 beta limitations:");
+        System.out.println("   - Tool integration (SharePoint, MCP) not yet available");
+        System.out.println("   - This demonstrates core agent conversation functionality");
+        System.out.println("   - Full tool support will be added in future releases");
+        
         return agent;
-        // </create_agent_with_tools>
+        // </create_agent>
     }
 
     /**
@@ -311,28 +199,28 @@ public class ModernWorkplaceAssistant {
      * 
      * Educational Value:
      * - Shows real business problems that AI agents can solve
-     * - Demonstrates proper thread and message management
+     * - Demonstrates proper conversation management
      * - Illustrates Agent SDK v2 conversation patterns
      */
-    private static void demonstrateBusinessScenarios(Agent agent) {
+    private static void demonstrateBusinessScenarios(AgentVersionObject agent) {
         List<BusinessScenario> scenarios = List.of(
                 new BusinessScenario(
-                        "📋 Company Policy Question (SharePoint Only)",
-                        "What is Contoso's remote work policy?",
-                        "Employee needs to understand company-specific remote work requirements",
-                        "SharePoint tool retrieves internal company policies"
+                        "📋 Enterprise Policy Question",
+                        "What is a typical enterprise remote work policy for security?",
+                        "Employee needs to understand common enterprise remote work requirements",
+                        "Agent provides general guidance on enterprise policies"
                 ),
                 new BusinessScenario(
-                        "📚 Technical Documentation Question (MCP Only)",
-                        "According to Microsoft Learn, what is the correct way to implement Azure AD Conditional Access policies? Please include reference links to the official documentation.",
-                        "IT administrator needs authoritative Microsoft technical guidance",
-                        "MCP tool accesses Microsoft Learn for official documentation with links"
+                        "📚 Technical Documentation Question",
+                        "What is the correct way to implement Azure AD Conditional Access policies?",
+                        "IT administrator needs technical implementation guidance",
+                        "Agent provides detailed Azure technical implementation steps"
                 ),
                 new BusinessScenario(
-                        "🔄 Combined Implementation Question (SharePoint + MCP)",
-                        "Based on our company's remote work security policy, how should I configure my Azure environment to comply? Please include links to Microsoft documentation showing how to implement each requirement.",
-                        "Need to map company policy to technical implementation with official guidance",
-                        "Both tools work together: SharePoint for policy + MCP for implementation docs"
+                        "🔄 Combined Implementation Question",
+                        "How should I configure my Azure environment for secure remote work with MFA?",
+                        "Need practical implementation combining security best practices",
+                        "Agent combines policy guidance with technical implementation"
                 )
         );
 
@@ -354,7 +242,7 @@ public class ModernWorkplaceAssistant {
 
             // <agent_conversation>
             System.out.println("🤖 ASSISTANT RESPONSE:");
-            ChatResult result = chatWithAssistant(agent.getId(), scenario.question);
+            ChatResult result = chatWithAssistant(agent, scenario.question);
             // </agent_conversation>
 
             // Display response with analysis
@@ -384,7 +272,7 @@ public class ModernWorkplaceAssistant {
         System.out.println("\n✅ DEMONSTRATION COMPLETED!");
         System.out.println("🎓 Key Learning Outcomes:");
         System.out.println("   • Agent SDK v2 usage for enterprise AI");
-        System.out.println("   • Proper thread and message management");
+        System.out.println("   • Proper conversation and response management");
         System.out.println("   • Real business value through AI assistance");
         System.out.println("   • Foundation for governance and monitoring (Tutorials 2-3)");
     }
@@ -392,62 +280,59 @@ public class ModernWorkplaceAssistant {
     /**
      * Execute a conversation with the workplace assistant using Agent SDK v2.
      * 
-     * This function demonstrates the conversation pattern for Azure AI Agents SDK v2
-     * including MCP tool approval handling.
+     * This function demonstrates the conversation pattern for Azure AI Agents SDK v2.
      * 
      * Educational Value:
      * - Shows proper conversation management with Agent SDK v2
-     * - Demonstrates thread creation and message handling
-     * - Illustrates MCP approval with auto-approval pattern
-     * - Includes timeout and error management patterns
+     * - Demonstrates conversation creation and message handling
+     * - Includes error management patterns
      * 
-     * @param agentId The ID of the agent to chat with
+     * @param agent The agent to chat with
      * @param message The user's message
      * @return ChatResult containing response text and status
      */
-    private static ChatResult chatWithAssistant(String agentId, String message) {
+    private static ChatResult chatWithAssistant(AgentVersionObject agent, String message) {
         try {
-            // Create a thread for the conversation
-            AgentThread thread = agentsClient.createThread(new CreateAgentThreadOptions());
+            // <create_conversation>
+            // Create a conversation
+            Conversation conversation = conversationsClient.getOpenAIClient().create();
 
-            // Create a message in the thread
-            ThreadMessage messageObj = agentsClient.createMessage(
-                    thread.getId(),
-                    new CreateMessageOptions(MessageRole.USER, message)
+            // Add system and user messages to the conversation
+            conversationsClient.getOpenAIClient().items().create(
+                    ItemCreateParams.builder()
+                            .conversationId(conversation.id())
+                            .addItem(EasyInputMessage.builder()
+                                    .role(EasyInputMessage.Role.USER)
+                                    .content(message)
+                                    .build())
+                            .build()
             );
+            // </create_conversation>
 
-            // <mcp_approval_usage>
-            // Create and process run with auto-approval for MCP tools
-            // This is the recommended pattern for MCP tools in Agent SDK v2
-            SyncPoller<ThreadRun, ThreadRun> poller = agentsClient.beginCreateAndProcessRun(
-                    thread.getId(),
-                    agentId,
-                    new CreateAndProcessRunOptions()
-                            .setAutoApproveMcpTools(true) // Auto-approve MCP tool calls
-            );
+            // <create_response>
+            // Create agent reference and get response
+            AgentReference agentReference = new AgentReference(agent.getName())
+                    .setVersion(agent.getVersion());
             
-            ThreadRun run = poller.getFinalResult();
-            // </mcp_approval_usage>
+            Response response = responsesClient.createWithAgentConversation(
+                    agentReference,
+                    conversation.id()
+            );
+            // </create_response>
 
-            // Retrieve messages
-            if (run.getStatus() == RunStatus.COMPLETED) {
-                List<ThreadMessage> messages = agentsClient.listMessages(thread.getId())
-                        .stream()
-                        .collect(Collectors.toList());
-
-                // Get the assistant's response (last message from assistant)
-                for (int i = messages.size() - 1; i >= 0; i--) {
-                    ThreadMessage msg = messages.get(i);
-                    if (msg.getRole() == MessageRole.ASSISTANT && !msg.getContentItems().isEmpty()) {
-                        MessageTextContent textContent = (MessageTextContent) msg.getContentItems().get(0);
-                        return new ChatResult(textContent.getText().getValue(), "completed");
+            // Extract the response text
+            if (response != null && response.output() != null) {
+                // Get the first output item's content
+                if (!response.output().isEmpty()) {
+                    Object firstOutput = response.output().get(0);
+                    if (firstOutput != null) {
+                        String responseText = firstOutput.toString();
+                        return new ChatResult(responseText, "completed");
                     }
                 }
-
-                return new ChatResult("No response from assistant", "completed");
-            } else {
-                return new ChatResult("Run ended with status: " + run.getStatus(), run.getStatus().toString());
             }
+
+            return new ChatResult("No response from assistant", "completed");
 
         } catch (Exception e) {
             return new ChatResult("Error in conversation: " + e.getMessage(), "failed");
@@ -460,7 +345,7 @@ public class ModernWorkplaceAssistant {
      * This provides a simple interface for users to test the agent with their own questions
      * and see how it provides comprehensive technical guidance.
      */
-    private static void interactiveMode(Agent agent) {
+    private static void interactiveMode(AgentVersionObject agent) {
         System.out.println("\n" + "=".repeat(60));
         System.out.println("💬 INTERACTIVE MODE - Test Your Workplace Assistant!");
         System.out.println("=".repeat(60));
@@ -488,7 +373,7 @@ public class ModernWorkplaceAssistant {
                 }
 
                 System.out.print("\n🤖 Workplace Assistant: ");
-                ChatResult result = chatWithAssistant(agent.getId(), question);
+                ChatResult result = chatWithAssistant(agent, question);
                 System.out.println(result.response);
 
                 if (!"completed".equals(result.status)) {
