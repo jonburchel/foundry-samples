@@ -2,28 +2,27 @@
 ## Install dependencies
 
  - install azure CLI
- - pip install openai azure-identity
- - pip install --pre azure-ai-projects 
+ - pip install azure-ai-projects openai azure-identity
  - az login
 
-## Prerequisites
+## Create a project and model deployment
 
-- Create a Foundry Project
-- Deploy a model to use in your sample
-- Rename the .env.example file to .env and update with your project and deployment name
+see: create_project.py
 
-## Generate a Response with your model
+## Run a chat completion
 
-see: quickstart-responses.py
+see: quickstart.py
 
 ## Create and run an agent
 
-see: quickstart-create-agent.py
+see: quickstart.py
 
-## Chat with your Agent
+## Add file search to agent
 
-see: quickstart-chat-with-agent.py
+see: quickstart.py
 
-## Cleanup
+## Evaluate agent run
 
-see: quickstart-chat-with-agent.py
+This will return scores for how good the agent performed on the task
+
+see: quickstart.py
