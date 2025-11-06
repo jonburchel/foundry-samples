@@ -1,9 +1,10 @@
+#!/usr/bin/env node
 /**
  * Azure AI Foundry Agent Sample - Tutorial 1: Modern Workplace Assistant
  *
  * This sample demonstrates a complete business scenario using Azure AI Agents SDK v2:
  * - Agent creation with the new SDK
- * - Conversation and response management
+ * - Thread and message management
  * - Robust error handling and graceful degradation
  *
  * Educational Focus:
@@ -18,5 +19,10 @@
  * 2. Technical implementation steps
  * 3. Combined guidance showing how policy requirements map to technical implementation
  */
+interface ChatResponse {
+    response: string;
+    status: string;
+}
+export declare function chatWithAssistant(agentId: string, message: string): Promise<ChatResponse>;
 export {};
 //# sourceMappingURL=main.d.ts.map
