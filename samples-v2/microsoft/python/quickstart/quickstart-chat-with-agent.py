@@ -10,7 +10,6 @@ project_client = AIProjectClient(
     credential=DefaultAzureCredential(),
 )
 
-# <chat_with_agent>
 openai_client = project_client.get_openai_client()
 
 # Optional Step: Create a conversation to use with the agent
@@ -24,22 +23,11 @@ response = openai_client.responses.create(
     input="What is the size of France in square miles?",
 )
 print(f"Response output: {response.output_text}")
-# </chat_with_agent>
 
-# <followup_question>
-#Ask a follow-up question in the same conversation
+#Optional Step: Ask a follow-up question in the same conversation
 response = openai_client.responses.create(
     conversation=conversation.id,
     extra_body={"agent": {"name": "MyAgent", "type": "agent_reference"}},
     input="And what is the capital city?",
 )
 print(f"Response output: {response.output_text}")
-# </followup_question>
-
-# <cleanup>
-openai_client.conversations.delete(conversation_id=conversation.id)
-print("Conversation deleted")
-
-project_client.agents.delete(agent_name="MyAgent")
-print("Agent deleted")
-# </cleanup>

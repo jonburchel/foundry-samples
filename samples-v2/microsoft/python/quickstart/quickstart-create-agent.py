@@ -11,7 +11,6 @@ project_client = AIProjectClient(
     credential=DefaultAzureCredential(),
 )
 
-# <create_agent>
 agent = project_client.agents.create_version(
     agent_name="MyAgent",
     definition=PromptAgentDefinition(
@@ -20,4 +19,3 @@ agent = project_client.agents.create_version(
     ),
 )
 print(f"Agent created (id: {agent.id}, name: {agent.name}, version: {agent.version})")
-# </create_agent>

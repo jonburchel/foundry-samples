@@ -43,16 +43,3 @@ curl -X POST https://YOUR-FOUNDRY-RESOURCE-NAME.services.ai.azure.com/api/projec
         "input" : "What is the size of France in square miles?"
     }'
 # </chat_with_agent>
-
-# <Cleanup>
-# Delete conversation
-curl -X DELETE https://YOUR-FOUNDRY-RESOURCE-NAME.services.ai.azure.com/api/projects/YOUR-PROJECT-NAME/openai/conversations/<YOUR_CONVERSATION_ID>?api-version=2025-11-15-preview \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $AZURE_AI_AUTH_TOKEN"
-
-
-# Delete Agent
-curl -X DELETE https://YOUR-FOUNDRY-RESOURCE-NAME.services.ai.azure.com/api/projects/YOUR-PROJECT-NAME/agents/<YOUR_AGENT_NAME>?api-version=2025-11-15-preview \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $AZURE_AI_AUTH_TOKEN"
-# </Cleanup>
