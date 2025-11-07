@@ -17,7 +17,7 @@ openai_client = project_client.get_openai_client()
 conversation = openai_client.conversations.create()
 print(f"Created conversation (id: {conversation.id})")
 
-#Chat with the agent to answer questions
+# Chat with the agent to answer questions
 response = openai_client.responses.create(
     conversation=conversation.id, #Optional conversation context for multi-turn
     extra_body={"agent": {"name": agent_name, "type": "agent_reference"}},
@@ -25,7 +25,7 @@ response = openai_client.responses.create(
 )
 print(f"Response output: {response.output_text}")
 
-#Optional Step: Ask a follow-up question in the same conversation
+# Optional Step: Ask a follow-up question in the same conversation
 response = openai_client.responses.create(
     conversation=conversation.id,
     extra_body={"agent": {"name": agent_name, "type": "agent_reference"}},

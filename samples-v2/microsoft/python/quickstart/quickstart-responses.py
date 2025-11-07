@@ -13,7 +13,6 @@ project_client = AIProjectClient(
     credential=DefaultAzureCredential(),
 )
 
-# <generate_response>
 openai_client = project_client.get_openai_client()
 
 response = openai_client.responses.create(
@@ -21,4 +20,3 @@ response = openai_client.responses.create(
     input="What is the size of France in square miles?",
 )
 print(f"Response output: {response.output_text}")
-# </generate_response>
