@@ -124,9 +124,11 @@ def create_workplace_assistant():
                 print(f"   ⚠️  AIProjectClient not available, attempting fallback...")
                 raise ImportError("azure-ai-projects not installed")
             
+            # <sharepoint_tool_setup>
             # Create SharePoint tool with the full ARM resource ID
             sharepoint_tool = SharepointTool(connection_id=connection_id)
             print(f"✅ SharePoint tool configured successfully")
+            # <sharepoint_tool_setup>
             
         except ImportError:
             print(f"⚠️  Connection resolution requires azure-ai-projects package")
