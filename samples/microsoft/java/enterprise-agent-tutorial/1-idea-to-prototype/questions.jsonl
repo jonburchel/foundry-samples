@@ -1,4 +1,0 @@
-{"question": "What is our remote work policy regarding security requirements?", "expected_keywords": ["remote", "work", "security", "VPN", "authentication"]}
-{"question": "How do I set up Azure Active Directory conditional access?", "expected_keywords": ["Azure", "Active Directory", "conditional access", "configure"]}
-{"question": "What collaboration tools are approved for internal use?", "expected_keywords": ["Teams", "SharePoint", "collaboration", "approved"]}
-{"question": "What Azure AD configuration should I implement to comply with our company's remote work security policy?", "expected_keywords": ["remote", "work", "security", "Azure", "AD", "multi-factor", "MFA", "policy", "conditional", "access"]}
