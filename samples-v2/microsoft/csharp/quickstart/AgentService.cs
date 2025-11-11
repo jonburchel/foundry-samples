@@ -1,4 +1,4 @@
-/ This sample combines each step of creating and running agents and conversations into a single example.
+// This sample combines each step of creating and running agents and conversations into a single example.
 // In practice, you would typically separate these steps into different applications.
 //
 #:package Azure.AI.Agents@2.*-*
@@ -18,7 +18,7 @@ string MODEL_DEPLOYMENT = Environment.GetEnvironmentVariable("AZURE_AI_FOUNDRY_M
 string AGENT_NAME = Environment.GetEnvironmentVariable("AZURE_AI_FOUNDRY_AGENT_NAME")
     ?? throw new InvalidOperationException("Missing environment variable 'AZURE_AI_FOUNDRY_AGENT_NAME'");
 
-AgentsClient agentsClient = new(new Uri(RAW_PROJECT_ENDPOINT), new AzureCliCredential());
+AgentClient agentsClient = new(new Uri(RAW_PROJECT_ENDPOINT), new AzureCliCredential());
 OpenAIClient openAIClient = agentsClient.GetOpenAIClient();
 OpenAIResponseClient responseClient = openAIClient.GetOpenAIResponseClient(MODEL_DEPLOYMENT);
 
@@ -30,7 +30,7 @@ AgentDefinition agentDefinition = new PromptAgentDefinition(MODEL_DEPLOYMENT)
 {
     Instructions = "You are a foo bar agent. In EVERY response you give, ALWAYS include both `foo` and `bar` strings somewhere in the response.",
 };
-AgentVersion newAgentVersion = await agentsClient.CreateAgentVersionAsync(AGENT_NAME, agentDefinition);
+AgentVersion newAgentVersion = await agentsClient.CreateAgentVersionAsync(AGENT_NAME, options: new(agentDefinition));
 
 //
 // Create a conversation to maintain state between calls
